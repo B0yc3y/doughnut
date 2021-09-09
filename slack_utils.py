@@ -145,19 +145,6 @@ def update_history(match_df, history_file, concat_df:bool = True):
 
     match_df.to_csv(history_file, index=False)
 
-def get_user_wrapper(user, session):
-    return session.users_info(user=user, include_locale=True)
-
-
-def get_all_user_data(users, session) -> List[Dict]:
-    user_details = []
-    with ThreadPoolExecutor() as executor:
-        running_tasks = [executor.submit(get_user_wrapper, user, session) for user in users]
-        for running_task in running_tasks:
-            result = running_task.result()
-            user_details.append(result)
-    return user_details
-
 
 def get_user_id_from_name(user_df: DataFrame, name: str) -> str:
     return user_df[user_df['name'] == name]['id'].values[0]
