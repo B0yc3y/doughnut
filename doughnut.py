@@ -164,7 +164,7 @@ def pull_history_from_s3(bucket_name: str, out_dir: str = "/tmp/"):
     bucket = S3_CLIENT.Bucket(bucket_name)
     print(f"Pulling history from s3://{bucket_name}")
     for s3_object in bucket.objects.all():
-        path, filename = os.path.split(s3_object.key)
+        _, filename = os.path.split(s3_object.key)
         print(f"Pulling history for channel {filename}")
         bucket.download_file(s3_object.key, f"{out_dir}{filename}")
 
