@@ -138,7 +138,7 @@ def create_matches(user_df, history_df):
     return match_df
 
 
-def update_history(match_df, history_file, concat_df:bool = True):
+def update_history(match_df, history_file, concat_df: bool = True):
     if concat_df:
         history_df: pd.DataFrame = pd.read_csv(history_file) if path.exists(history_file) else pd.DataFrame()
         match_df = pd.concat([history_df, match_df])
@@ -166,10 +166,10 @@ def get_match_conversation_id(user_ids: List[str], session: WebClient) -> str:
     return response['channel']['id']
 
 
-def direct_message_match(user1_name: str, user2_name: str, user_df: DataFrame, message: str, session: WebClient,):
+def direct_message_match(user1_name: str, user2_name: str, user_df: DataFrame, message: str, session: WebClient, ):
     user1_id: str = get_user_id_from_name(user_df, user1_name)
     user2_id: str = get_user_id_from_name(user_df, user2_name)
-    conv_id: str = get_match_conversation_id([user1_id,user2_id], session)
+    conv_id: str = get_match_conversation_id([user1_id, user2_id], session)
     session.chat_postMessage(
         channel=conv_id,
         as_user=SLACK_USER,
@@ -177,13 +177,14 @@ def direct_message_match(user1_name: str, user2_name: str, user_df: DataFrame, m
     )
 
 
-def create_match_dm(conv_id: str, user1_id:str, user2_id:str, session):
+def create_match_dm(conv_id: str, user1_id: str, user2_id: str, session):
     ids: List[str] = [user1_id, user2_id]
 
     organiser = ids[random.randint(0, 1)]
 
     session.chat_postMessage(channel=conv_id,
-                             text=f'Hello <@{user1_id}> and <@{user2_id}>! Welcome to a new round of doughnuts! Please use this DM channel to set up time to connect!',
+                             text=f'Hello <@{user1_id}> and <@{user2_id}>! Welcome to a new round of doughnuts! '
+                                  f'Please use this DM channel to set up time to connect!',
                              as_user=SLACK_USER)
     session.chat_postMessage(channel=conv_id,
                              text=f'<@{organiser}> you have been selected to organise the meeting',
@@ -193,7 +194,9 @@ def create_match_dm(conv_id: str, user1_id:str, user2_id:str, session):
 def post_matches(session, user_df, match_df, my_channel_id):
     create_match_dms(match_df, user_df, session)
 
-    message: str = 'The new round of pairings are in! You should have received a DM from _doughnut with your new doughnut partner. Please post any feedback here. (If there are an odd number of participants someone will get two matches)'
+    message: str = 'The new round of pairings are in! You should have received a DM from _doughnut with your new ' \
+                   'doughnut partner. Please post any feedback here. (If there are an odd number of participants ' \
+                   'someone will get two matches) '
     for i in range(0, len(match_df.index)):
         user1 = match_df[match_df.index == i].name1.values[0]
         user2 = match_df[match_df.index == i].name2.values[0]
