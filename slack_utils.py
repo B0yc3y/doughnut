@@ -201,7 +201,7 @@ def post_matches(session, user_df, match_df, my_channel_id):
         user2_id = user_df[user_df['name'] == user2]['id'].values[0]
         message += f'\n<@{user1_id}> and <@{user2_id}>'
 
-    message += f"\nThats {len(match_df.index)} donuts this time around!"
+    message += f"\nThat's {len(match_df.index)} donuts this time around!"
 
     # Send pairings to the ds_donut channel
     response = session.chat_postMessage(channel=my_channel_id,
