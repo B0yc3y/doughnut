@@ -1,10 +1,10 @@
+import csv
 import sys
 from concurrent.futures import ThreadPoolExecutor
 
 import slack_utils as su
 import os
 import boto3
-import pandas as pd
 from typing import List
 from datetime import date
 from pandas import DataFrame
@@ -50,7 +50,7 @@ def main():
     for channel in channels:
         channel_name, channel_id = channel.split(":")
         channel_history_file: str = get_history_file_path(channel_id, channel_name, HISTORY_DIR)
-        channel_history_df: DataFrame = get_history_df(channel_history_file)
+        channel_history_df: List[dict] = get_history_df(channel_history_file)
         last_run_date: date = get_last_run_date(channel_history_df)
         days_since_last_run: int = abs(date.today() - last_run_date).days
 
@@ -88,10 +88,15 @@ def get_last_run_date(channel_history_df: DataFrame) -> date:
         return date.fromisoformat(channel_history_df.tail(1)['match_date'].values[0])
 
 
-def get_history_df(history_file: str) -> DataFrame:
+def get_history_df(history_file: str) -> List[dict]:
+    """
+    Parse a CSV match history file
+    :param history_file: filepath to read from
+    :return: A list where each item is a single previously-held match
+    """
     if path.exists(history_file):
-        return pd.read_csv(history_file)
-    return pd.DataFrame()
+        return [{k: v for k, v in row.items()} for row in csv.DictReader(history_file, skipInitalSpace=True)]
+    return []
 
 
 def execute_channel_match_prompts(
