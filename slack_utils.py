@@ -1,11 +1,9 @@
 import random
-from typing import Any
 from datetime import datetime as dt
 from os import path
 from concurrent.futures import ThreadPoolExecutor
 import pandas as pd
 from typing import List, Dict
-import sys
 
 from pandas import DataFrame
 from slack_sdk import WebClient
@@ -22,8 +20,14 @@ def get_channel_dict(session):
     return channel_dict
 
 
-def get_user_df(session, channel_id):
-    user_info_list: Any = []
+def get_user_df(session, channel_id) -> List[dict]:
+    """
+    Fetch basic details for all active, non-bot users in this channel
+    :param session: a current Slack API session
+    :param channel_id: Slack channel unique ID
+    :return: A list with an {id, name, real_name, timezone} entry for each active, non-bot user in this channel
+    """
+    user_info_list = []
 
     response = session.conversations_members(channel=channel_id, limit=200)
     user_list = response['members']
@@ -31,22 +35,25 @@ def get_user_df(session, channel_id):
     user_detail_responses = get_all_user_data(user_list, session)
 
     for resp in user_detail_responses:
-        if (resp["user"] is not None
-                and not resp["user"]["deleted"]
-                and not resp["user"]["is_restricted"]
-                and not resp["user"]["is_bot"]
-        ):
-            user_info_list += [resp['user']]
+        user = resp['user']
+        if (user is not None
+                and not user['deleted']
+                and not user['is_restricted']
+                and not user['is_bot']
+                and not str(user['name']).contains('donut')
+                and not str(user['name']).contains('doughnut')):
 
-    if len(user_info_list) > 0:
-        user_df = pd.DataFrame(user_info_list)[['id', 'name', 'real_name', 'tz']]
-        user_df = user_df[(~user_df.name.str.contains('donut')) &
-                          (~user_df.name.str.contains('doughnut'))].reset_index(drop=True)
+            user_info_list.append({
+                'id': user['id'],
+                'name': user['name'],
+                'real_name': user['real_name'],
+                'tz': user['tz']
+            })
 
-        return user_df
+    if len(user_info_list) == 0:
+        print(f"No Suitable users found in channel: {channel_id}")
 
-    print(f"No Suitable users found in channel: {channel_id}")
-    sys.exit(1)
+    return user_info_list
 
 
 def get_user_wrapper(user, session):
