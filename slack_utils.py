@@ -122,22 +122,22 @@ def create_match_dm(conv_id: str, user1_id: str, user2_id: str, session):
                              as_user=SLACK_USER)
 
 
-def post_matches(session, user_df, match_df, my_channel_id):
-    create_match_dms(match_df, user_df, session)
+def post_matches(session: WebClient, user_df: List[dict], matches: List[dict], my_channel_id: str):
+    """
+    Creates a new DM for each pair of users to introduce them,
+    and also posts a list of all pairings to the channel
+    """
+    create_match_dms(matches, user_df, session)
 
     message: str = 'The new round of pairings are in! You should have received a DM from _doughnut with your new ' \
                    'doughnut partner. Please post any feedback here. (If there are an odd number of participants ' \
                    'someone will get two matches) '
-    for i in range(0, len(match_df.index)):
-        user1 = match_df[match_df.index == i].name1.values[0]
-        user2 = match_df[match_df.index == i].name2.values[0]
-        user1_id = user_df[user_df['name'] == user1]['id'].values[0]
-        user2_id = user_df[user_df['name'] == user2]['id'].values[0]
+    for match in matches:
+        user1_id = match['user1']['id']
+        user2_id = match['user2']['id']
         message += f'\n<@{user1_id}> and <@{user2_id}>'
 
-    message += f"\nThat's {len(match_df.index)} donuts this time around!"
+    message += f"\nThat's {len(matches)} donuts this time around!"
 
     # Send pairings to the ds_donut channel
-    response = session.chat_postMessage(channel=my_channel_id,
-                                        text=message,
-                                        as_user='@doughnut_bot')
+    session.chat_postMessage(channel=my_channel_id, text=message, as_user='@doughnut_bot')
