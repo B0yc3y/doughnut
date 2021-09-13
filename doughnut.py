@@ -5,8 +5,9 @@ from concurrent.futures import ThreadPoolExecutor
 import slack_utils as su
 import os
 import boto3
-from typing import List
+from typing import List, Dict
 from datetime import date
+from datetime import datetime as dt
 from pandas import DataFrame
 from os import path
 from slack_sdk import WebClient
@@ -144,16 +145,116 @@ def send_prompt_message(channel_users: DataFrame, match: List[str], session):
     )
 
 
-def execute_channel_matches(channel_id, history_df, post_to_slack, session: WebClient) -> DataFrame:
+def execute_channel_matches(channel_id: str, history_df: List[dict], post_to_slack: bool, session: WebClient) -> List[dict]:
+    """
+    Gather user information, calculate best matches, and post those matches to Slack.
+    :param channel_id: Slack channel
+    :param history_df: History of previous matches for this channel
+    :param post_to_slack: yes/no send Slack DMs
+    :param session: Slack API session
+    :return: a list of matches made this time
+    """
     print(f"Fetching users in channel: {channel_id}")
     channel_users = su.get_user_df(session, channel_id)
     print(f"Successfully found: {len(channel_users)} users")
     print("Generating optimal matches, `this could take some time...")
-    match_df = su.create_matches(channel_users, history_df)
+    match_df = create_matches(channel_users, history_df)
     print(f"The following matches have been found: {match_df}")
     if post_to_slack:
         post_matches_to_slack(channel_id, channel_users, match_df, session)
     return match_df
+
+
+def create_matches(user_df: List[dict], history_df: List[dict]) -> List[dict]:
+    """
+    Choose which users should be paired together this time
+    :param user_df: A list of active users in this channel
+    :param history_df: A list of previously matched pairs (names and dates)
+    :return: A list of pairings (same format as history_df)
+    """
+
+    """
+    Build a record of previous pairings for each user
+    eg
+    {
+      'Alice': {
+        'Bob': ['2021-01-01', '2021-03-07'],
+        'Charlie': ['2020-12-25']
+    """
+    match_counts: Dict[str, Dict[str, List[str]]] = dict()
+    for match in history_df:
+        person_a = match['name1']
+        person_b = match['name2']
+
+        record_match(person_a, person_b, match['date'], match_counts)
+        record_match(person_b, person_a, match['date'], match_counts)
+
+    """
+    Build a list of all potential pairings with a score for each:
+    {name1, name2, match_strength}
+    """
+    possible_matches = []
+    for i in range(len(user_df)):
+        user1 = user_df[i]
+        user1['matched'] = False
+        for j in range(i + 1, len(user_df)):
+            user2 = user_df[j]
+
+            match_strength = calculate_match_strength(user1, user2, match_counts)
+            possible_matches.append({
+                'user1': user1,
+                'user2': user2,
+                'match_strength': match_strength
+            })
+
+    """
+    Iterate through potential matches from best to worst, marking users as paired off as we go
+    """
+    chosen_matches = []
+    for potential in sorted(possible_matches, key=lambda v: v['match_strength'], reverse=True):
+        if not (potential['user1']['matched'] or potential['user2']['matched']):
+            chosen_matches.append(potential)
+            potential['user1']['matched'] = True
+            potential['user2']['matched'] = True
+
+    # Find if anyone wasn't matched, make a second match with their top option
+    # This should only happen if we have an odd number of users
+    for user in user_df:
+        if not user['matched']:
+            # TODO: How to efficiently find their top match without traversing the whole potential_matches array again?
+            print('Could not find a match for %s' % user['name'])
+
+    return chosen_matches
+
+
+def record_match(host: str, guest: str, meet_date: str, matches: Dict[str, Dict[str, List[str]]]):
+    """
+    Records a given meeting in the history for the host.
+    """
+    if host not in matches:
+        matches[host] = {}
+
+    if guest not in matches[host]:
+        matches[host][guest] = [meet_date]
+    else:
+        matches[host][guest].append(meet_date)
+
+
+def calculate_match_strength(user1: Dict[str, str], user2: Dict[str, str], past_matches: Dict[str, Dict[str, List[str]]]) -> int:
+    """
+    Provides a weighting/metric for how "good" a potential pairing is.
+    """
+    name1 = user1['name']
+    name2 = user2['name']
+    if name1 not in past_matches or name2 not in past_matches[name1]:
+        times_paired = 0
+    else:
+        times_paired = len(past_matches[name1][name2])
+
+    is_diff_tz = (user1['tz'] != user2['tz'])
+
+    # Users in different timezones prioritised, but won't match the same person again until you have met everyone else
+    return is_diff_tz - 2*times_paired
 
 
 def get_history_file_path(channel_id, channel_name, history_dir):

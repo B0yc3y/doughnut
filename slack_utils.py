@@ -1,5 +1,4 @@
 import random
-from datetime import datetime as dt
 from os import path
 from concurrent.futures import ThreadPoolExecutor
 import pandas as pd
@@ -68,80 +67,6 @@ def get_all_user_data(users, session) -> List[Dict]:
             result = running_task.result()
             user_details.append(result)
     return user_details
-
-
-def create_matches(user_df, history_df):
-    # Match across timezones and with those they haven't matched with yet
-    possible_cases_df = pd.DataFrame(columns=['name1', 'name2', 'times_paired', 'is_diff_tz'])
-    user_list = user_df['name'].tolist()
-
-    for i in range(len(user_list)):
-        name1 = user_df['name'][i]
-        for j in range(i + 1, len(user_list)):
-            name2 = user_df['name'][j]
-
-            if len(history_df) > 0:
-                tmp_hist_df = history_df[((history_df['name1'] == name1) &
-                                          (history_df['name2'] == name2)) |
-                                         ((history_df['name2'] == name1) &
-                                          (history_df['name1'] == name2))]
-                times_paired = len(tmp_hist_df)
-            else:
-                times_paired = 0
-
-            name1_mask = user_df['name'].values == name1
-            name2_mask = user_df['name'].values == name2
-
-            name1_tz = user_df[name1_mask]['tz'].values[0]
-            name2_tz = user_df[name2_mask]['tz'].values[0]
-
-            is_diff_tz = (name1_tz != name2_tz)
-
-            possible_cases_df = possible_cases_df.append({'name1': name1,
-                                                          'name2': name2,
-                                                          'times_paired': times_paired,
-                                                          'is_diff_tz': is_diff_tz}, ignore_index=True)
-
-    possible_cases_df['match_strength'] = (possible_cases_df['is_diff_tz'] * 2) - possible_cases_df['times_paired']
-    filter_cases_df = possible_cases_df.copy(deep=True)
-
-    match_df = pd.DataFrame(columns=['name1', 'name2'])
-    ind = 0
-    for user in user_df['name'].tolist():
-        top_user_match = filter_cases_df[(filter_cases_df['name1'] == user) |
-                                         (filter_cases_df['name2'] == user)].sort_values('match_strength',
-                                                                                         ascending=False).reset_index(
-            drop=True)[['name1', 'name2']].head(1).reset_index(drop=True)
-        if len(top_user_match.index) > 0:
-            name1 = top_user_match.name1.values[0]
-            name2 = top_user_match.name2.values[0]
-            match_df.loc[ind] = [name1, name2]
-            filter_cases_df = filter_cases_df[(filter_cases_df['name1'] != name1) &
-                                              (filter_cases_df['name2'] != name1)]
-            filter_cases_df = filter_cases_df[(filter_cases_df['name1'] != name2) &
-                                              (filter_cases_df['name2'] != name2)]
-            ind += 1
-
-    # Find if anyone wasn't matched, make a second match with their top option
-    for user in user_df['name'].tolist():
-        tmp_match_df = match_df[(match_df['name1'] == user) |
-                                (match_df['name2'] == user)]
-        if len(tmp_match_df.index) == 0:
-            print(f'User: {user} was not matched. Setting a second match up for them...')
-            top_user_match = possible_cases_df[(possible_cases_df['name1'] == user) |
-                                               (possible_cases_df['name2'] == user)].sort_values('match_strength',
-                                                                                                 ascending=False).reset_index(
-                drop=True)[['name1', 'name2']].head(1).reset_index(drop=True)
-
-            name1 = top_user_match.name1.values[0]
-            name2 = top_user_match.name2.values[0]
-            match_df.loc[ind] = [name1, name2]
-
-    today = dt.strftime(dt.now(), "%Y-%m-%d")
-    match_df['match_date'] = today
-    match_df['prompted'] = 0
-
-    return match_df
 
 
 def update_history(match_df, history_file, concat_df: bool = True):
