@@ -165,7 +165,7 @@ def get_match_conversation_id(user_ids: List[str], session: WebClient) -> str:
     return response['channel']['id']
 
 
-def direct_message_match(user1_name: str, user2_name: str, user_df: DataFrame, message: str, session: WebClient, ):
+def direct_message_match(user1_name: str, user2_name: str, user_df: DataFrame, message: str, session: WebClient):
     user1_id: str = get_user_id_from_name(user_df, user1_name)
     user2_id: str = get_user_id_from_name(user_df, user2_name)
     conv_id: str = get_match_conversation_id([user1_id, user2_id], session)
