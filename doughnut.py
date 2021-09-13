@@ -94,8 +94,12 @@ def get_history_df(history_file: str) -> DataFrame:
     return pd.DataFrame()
 
 
-def execute_channel_match_prompts(channel_id: str, match_history_df: DataFrame, post_to_slack: bool,
-                                  session: WebClient) -> DataFrame:
+def execute_channel_match_prompts(
+    channel_id: str,
+    match_history_df: DataFrame,
+    post_to_slack: bool,
+    session: WebClient
+) -> DataFrame:
     print(f"Checking for matches to prompt in channel: {channel_id}")
     matches_to_prompt: List[List[str]] = []
     for index, row in match_history_df.iterrows():
