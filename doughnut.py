@@ -51,20 +51,20 @@ def main():
     for channel in channels:
         channel_name, channel_id = channel.split(":")
         channel_history_file: str = get_history_file_path(channel_id, channel_name, HISTORY_DIR)
-        channel_history_df: List[dict] = get_history_df(channel_history_file)
-        last_run_date: date = get_last_run_date(channel_history_df)
+        channel_history: List[dict] = get_history_df(channel_history_file)
+        last_run_date: date = get_last_run_date(channel_history)
         days_since_last_run: int = abs(date.today() - last_run_date).days
 
         print(f"Days since last run: {days_since_last_run}")
         # if it's been more than enough days, run more matches.
         if days_since_last_run >= DAYS_BETWEEN_RUNS:
-            matches: DataFrame = execute_channel_matches(channel_id, channel_history_df, POST_MATCHES, SESSION)
+            matches = execute_channel_matches(channel_id, channel_history, POST_MATCHES, SESSION)
             print("Updating history with new matches.")
             su.update_history(matches, channel_history_file)
 
         # if it's been more than match days/2, prompt people to check if they've made a time.
         elif days_since_last_run >= PROMPT_DAYS:
-            matches: DataFrame = execute_channel_match_prompts(channel_id, channel_history_df, POST_MATCHES, SESSION)
+            matches = execute_channel_match_prompts(channel_id, channel_history, POST_MATCHES, SESSION)
             print("Updating history with new prompts")
             su.update_history(matches, channel_history_file, False)
 
@@ -82,11 +82,12 @@ def main():
     print("Thanks for using doughnut! Goodbye!")
 
 
-def get_last_run_date(channel_history_df: DataFrame) -> date:
-    if len(channel_history_df) == 0:
+def get_last_run_date(channel_history: List[dict]) -> date:
+    if len(channel_history) == 0:
         return date.min
     else:
-        return date.fromisoformat(channel_history_df.tail(1)['match_date'].values[0])
+        # Assumed sorted by date
+        return date.fromisoformat(channel_history[0]['match_date'])
 
 
 def get_history_df(history_file: str) -> List[dict]:
