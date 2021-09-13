@@ -145,11 +145,11 @@ def send_prompt_message(channel_users: DataFrame, match: List[str], session):
     )
 
 
-def execute_channel_matches(channel_id: str, history_df: List[dict], post_to_slack: bool, session: WebClient) -> List[dict]:
+def execute_channel_matches(channel_id: str, history: List[dict], post_to_slack: bool, session: WebClient) -> List[dict]:
     """
     Gather user information, calculate best matches, and post those matches to Slack.
     :param channel_id: Slack channel
-    :param history_df: History of previous matches for this channel
+    :param history: History of previous matches for this channel
     :param post_to_slack: yes/no send Slack DMs
     :param session: Slack API session
     :return: a list of matches made this time
@@ -158,11 +158,11 @@ def execute_channel_matches(channel_id: str, history_df: List[dict], post_to_sla
     channel_users = su.get_user_df(session, channel_id)
     print(f"Successfully found: {len(channel_users)} users")
     print("Generating optimal matches, `this could take some time...")
-    match_df = create_matches(channel_users, history_df)
-    print(f"The following matches have been found: {match_df}")
+    matches = create_matches(channel_users, history)
+    print(f"The following matches have been found: {matches}")
     if post_to_slack:
-        post_matches_to_slack(channel_id, channel_users, match_df, session)
-    return match_df
+        post_matches_to_slack(channel_id, matches, session)
+    return matches
 
 
 def create_matches(user_df: List[dict], history_df: List[dict]) -> List[dict]:
@@ -264,10 +264,10 @@ def get_history_file_path(channel_id, channel_name, history_dir):
     return channel_history_file
 
 
-def post_matches_to_slack(channel_id, channel_users, match_df, session):
+def post_matches_to_slack(channel_id, match_df, session):
     print(f"Posting matches to channel: {channel_id}.")
     print("Setting up DM channels for matched pairs.")
-    su.post_matches(session, channel_users, match_df, channel_id)
+    su.post_matches(session, match_df, channel_id)
 
 
 def pull_history_from_s3(bucket_name: str, out_dir: str = "/tmp/"):

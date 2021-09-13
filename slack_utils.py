@@ -81,13 +81,11 @@ def get_user_id_from_name(user_df: DataFrame, name: str) -> str:
     return user_df[user_df['name'] == name]['id'].values[0]
 
 
-def create_match_dms(match_df, user_df, session):
+def create_match_dms(matches: List[dict], session: WebClient):
     with ThreadPoolExecutor() as executor:
-        for i in range(len(match_df)):
-            user1: str = match_df[match_df.index == i].name1.values[0]
-            user2: str = match_df[match_df.index == i].name2.values[0]
-            user1_id: str = get_user_id_from_name(user_df, user1)
-            user2_id: str = get_user_id_from_name(user_df, user2)
+        for match in matches:
+            user1_id = match['user1']['id']
+            user2_id = match['user2']['id']
             conversation_id_future = executor.submit(get_match_conversation_id, [user1_id, user2_id], session)
             executor.submit(create_match_dm, conversation_id_future.result(), user1_id, user2_id, session)
 
@@ -108,7 +106,7 @@ def direct_message_match(user1_name: str, user2_name: str, user_df: DataFrame, m
     )
 
 
-def create_match_dm(conv_id: str, user1_id: str, user2_id: str, session):
+def create_match_dm(conv_id: str, user1_id: str, user2_id: str, session: WebClient):
     ids: List[str] = [user1_id, user2_id]
 
     organiser = ids[random.randint(0, 1)]
@@ -122,12 +120,12 @@ def create_match_dm(conv_id: str, user1_id: str, user2_id: str, session):
                              as_user=SLACK_USER)
 
 
-def post_matches(session: WebClient, user_df: List[dict], matches: List[dict], my_channel_id: str):
+def post_matches(session: WebClient, matches: List[dict], my_channel_id: str):
     """
     Creates a new DM for each pair of users to introduce them,
     and also posts a list of all pairings to the channel
     """
-    create_match_dms(matches, user_df, session)
+    create_match_dms(matches, session)
 
     message: str = 'The new round of pairings are in! You should have received a DM from _doughnut with your new ' \
                    'doughnut partner. Please post any feedback here. (If there are an odd number of participants ' \
