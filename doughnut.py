@@ -168,7 +168,7 @@ def execute_channel_matches(channel_id: str, channel_users: List[dict], history:
     :param session: Slack API session
     :return: a list of matches made this time
     """
-    print("Generating optimal matches, `this could take some time...")
+    print("Generating optimal matches, this could take some time...")
     matches = create_matches(channel_users, history)
     print(f"The following matches have been found: {matches}")
     if post_to_slack:
@@ -205,8 +205,8 @@ def create_matches(user_df: List[dict], history_df: List[dict]) -> List[dict]:
         person_a = match['name1']
         person_b = match['name2']
 
-        record_match(person_a, person_b, match['date'], match_counts)
-        record_match(person_b, person_a, match['date'], match_counts)
+        record_match(person_a, person_b, match['match_date'], match_counts)
+        record_match(person_b, person_a, match['match_date'], match_counts)
 
     """
     Build a list of all potential pairings with a score for each:
