@@ -1,5 +1,5 @@
 # doughnut_bot
-Bare bones, custom version of [Donut Slack App](https://beemit.slack.com/apps/A11MJ51SR-donut?tab=more_info)
+Bare bones, custom version of [Donut Slack App](https://slack.com/apps/A11MJ51SR-donut?tab=more_info)
 
 This app gets all active, not bot users in a Slack channel and randomly pairs them up for a social catch up, taking into account previous matches and timezones.
 The app will create a DM with the matched users, and post the matches to the channel it's pulling from.
@@ -18,7 +18,7 @@ Some of these env vars are defaulted, the token and bucket names are the only re
 Post matches is required to be true to execute fully.
 ```shell
 export SLACK_API_TOKEN="SlackTokenHere" # get a slack integration token from your slack admin
-export DOUGHNUT_S3_BUCKET="bc-mel-doughnut-store" # replace as required
+export DOUGHNUT_S3_BUCKET="doughnut-store" # replace as required
 
 #defaulted env vars
 #enable POST_MATCHES to actually post results to slack, and to write history to s3
@@ -32,3 +32,9 @@ export SLACK_CHANNELS="channelName:channelId,channelName2:channelId2"
 ```shell
 python3 doughnut.py
 ```
+
+## Improvements
+ - Rewrite Slack integration
+   - Pulling User Data
+   - Creating Chats/Messages
+ - Opt out of matching with certain individuals
