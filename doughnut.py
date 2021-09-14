@@ -77,7 +77,8 @@ def main():
 
         # if it's been more than match days/2, prompt people to check if they've made a time.
         else:
-            execute_channel_match_prompts(channel_id, channel_users, channel_history, POST_MATCHES, SESSION)
+            user_id_lookup = {u['name']: u['id'] for u in channel_users}
+            execute_channel_match_prompts(channel_id, user_id_lookup, channel_history, POST_MATCHES, SESSION)
             print("Updating history with new prompts.")
             write_history(channel_history, channel_history_file)
 
@@ -110,42 +111,47 @@ def get_history_df(history_file: str) -> List[dict]:
 
 def execute_channel_match_prompts(
     channel_id: str,
-    channel_users: List[dict],
+    user_id_lookup: Dict[str, str],
     match_history: List[dict],
     post_to_slack: bool,
     session: WebClient
-) -> DataFrame:
+) -> List[dict]:
+    """
+    Send a message to matched users checking up on them, and update history to show
+    that this has happened.
+    :return: updated match_history
+    """
     print(f"Checking for matches to prompt in channel: {channel_id}")
-    matches_to_prompt: List[List[str]] = []
-    for index, row in match_history_df.iterrows():
-        days_since_last_run: int = abs(date.today() - date.fromisoformat(row['match_date'])).days
-        if not row['prompted'] and days_since_last_run >= PROMPT_DAYS:
-            match_history_df.at[index, 'prompted'] = 1
-            sorted_match: List[str] = sorted([row['name1'], row['name2']])
-            if sorted_match not in matches_to_prompt:
-                matches_to_prompt.append(sorted_match)
+    matches_to_prompt: List[dict] = []
+    for match in match_history:
+        if not match['prompted']:
+            days_since_last_run: int = abs(date.today() - date.fromisoformat(match['match_date'])).days
+            if days_since_last_run >= PROMPT_DAYS:
+                match['prompted'] = 1
+                matches_to_prompt.append(match)
+
     if len(matches_to_prompt) > 0:
         print(f"Prompting {len(matches_to_prompt)} matches")
         if post_to_slack:
-            prompt_match_list(channel_users, matches_to_prompt, session)
+            prompt_match_list(user_id_lookup, matches_to_prompt, session)
 
-    return match_history_df
+    return match_history
 
 
-def prompt_match_list(channel_users: List[dict], matches_to_prompt: List[dict], session: WebClient):
+def prompt_match_list(user_id_lookup: Dict[str, str], matches_to_prompt: List[Dict[str, str]], session: WebClient):
     with ThreadPoolExecutor() as executor:
         for match in matches_to_prompt:
-            executor.submit(send_prompt_message, channel_users, match, session)
+            executor.submit(send_prompt_message, user_id_lookup, match, session)
 
 
-def send_prompt_message(channel_users: DataFrame, match: List[str], session):
+def send_prompt_message(user_id_lookup: Dict[str, str], match: Dict[str, str], session: WebClient):
     message = "It's the halfway point, checking in to ensure the session has been scheduled or completed"
-    user1_name: str = match[0]
-    user2_name: str = match[1]
+    user1_name: str = match['name1']
+    user2_name: str = match['name2']
     su.direct_message_match(
         user1_name=user1_name,
         user2_name=user2_name,
-        user_df=channel_users,
+        user_id_lookup=user_id_lookup,
         message=message,
         session=session
     )
