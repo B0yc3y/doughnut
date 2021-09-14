@@ -78,9 +78,10 @@ def main():
         # if it's been more than match days/2, prompt people to check if they've made a time.
         else:
             user_id_lookup = {u['name']: u['id'] for u in channel_users}
-            execute_channel_match_prompts(channel_id, user_id_lookup, channel_history, POST_MATCHES, SESSION)
-            print("Updating history with new prompts.")
-            write_history(channel_history, channel_history_file)
+            users_prompted = execute_channel_match_prompts(channel_id, user_id_lookup, channel_history, POST_MATCHES, SESSION)
+            if users_prompted > 0:
+                print("Updating history with new prompts.")
+                write_history(channel_history, channel_history_file)
 
     # push updated history to s3 if backed by s3
     if S3_BUCKET_NAME is not None and POST_MATCHES:
@@ -116,11 +117,11 @@ def execute_channel_match_prompts(
     match_history: List[dict],
     post_to_slack: bool,
     session: WebClient
-) -> List[dict]:
+) -> int:
     """
     Send a message to matched users checking up on them, and update history to show
     that this has happened.
-    :return: updated match_history
+    :return: count of users prompted
     """
     print(f"Checking for matches to prompt in channel: {channel_id}")
     matches_to_prompt: List[dict] = []
@@ -135,8 +136,10 @@ def execute_channel_match_prompts(
         print(f"Prompting {len(matches_to_prompt)} matches")
         if post_to_slack:
             prompt_match_list(user_id_lookup, matches_to_prompt, session)
+    else:
+        print("No matches require prompting.")
 
-    return match_history
+    return len(matches_to_prompt)
 
 
 def prompt_match_list(user_id_lookup: Dict[str, str], matches_to_prompt: List[Dict[str, str]], session: WebClient):
