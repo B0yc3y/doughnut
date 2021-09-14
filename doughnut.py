@@ -255,8 +255,21 @@ def create_matches(user_df: List[dict], history_df: List[dict]) -> List[dict]:
     # This should only happen if we have an odd number of users
     for user in user_df:
         if not user['matched']:
-            # TODO: How to efficiently find their top match without traversing the whole potential_matches array again?
-            print('Could not find a match for %s' % user['name'])
+            max_match: int
+            max_match_partner: Dict
+            for partner in user_df:
+                if partner['name'] != user['name']:
+                    this_match_strength = calculate_match_strength(user, partner, match_counts)
+                    if max_match is None or this_match_strength > max_match:
+                        max_match = this_match_strength
+                        max_match_partner = partner
+
+            user['matched'] = True
+            chosen_matches.append({
+                'user1': user,
+                'user2': max_match_partner,
+                'match_strength': max_match
+            })
 
     return chosen_matches
 
