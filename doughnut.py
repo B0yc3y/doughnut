@@ -9,7 +9,6 @@ import boto3
 from typing import List, Dict
 from datetime import date
 from datetime import datetime as dt
-from pandas import DataFrame
 from os import path
 from slack_sdk import WebClient
 from botocore.exceptions import ClientError

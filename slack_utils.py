@@ -2,7 +2,6 @@ import random
 from concurrent.futures import ThreadPoolExecutor
 from typing import List, Dict
 
-from pandas import DataFrame
 from slack_sdk import WebClient
 
 SLACK_USER = '@doughnut-bot'
@@ -65,10 +64,6 @@ def get_all_user_data(users, session) -> List[Dict]:
             result = running_task.result()
             user_details.append(result)
     return user_details
-
-
-def get_user_id_from_name(user_df: DataFrame, name: str) -> str:
-    return user_df[user_df['name'] == name]['id'].values[0]
 
 
 def create_match_dms(matches: List[dict], session: WebClient):
