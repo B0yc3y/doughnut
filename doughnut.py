@@ -57,24 +57,29 @@ def main():
         days_since_last_run: int = abs(date.today() - last_run_date).days
 
         print(f"Days since last run: {days_since_last_run}")
+
+        # if it's been less than the minimum number of days needed to do more work exit.
+        if days_since_last_run < PROMPT_DAYS:
+            print(f"It has only been {days_since_last_run} days since last run.")
+            print("Nothing to do. Goodbye!")
+            sys.exit(1)
+
+        print(f"Fetching users in channel: {channel_id}")
+        channel_users = su.get_user_df(SESSION, channel_id)
+        print(f"Successfully found: {len(channel_users)} users")
+
         # if it's been more than enough days, run more matches.
         if days_since_last_run >= DAYS_BETWEEN_RUNS:
-            matches = execute_channel_matches(channel_id, channel_history, POST_MATCHES, SESSION)
+            matches = execute_channel_matches(channel_id, channel_users, channel_history, POST_MATCHES, SESSION)
             print("Updating history with new matches.")
             channel_history += matches
             write_history(channel_history, channel_history_file)
 
         # if it's been more than match days/2, prompt people to check if they've made a time.
-        elif days_since_last_run >= PROMPT_DAYS:
-            matches = execute_channel_match_prompts(channel_id, channel_history, POST_MATCHES, SESSION)
+        else:
+            execute_channel_match_prompts(channel_id, channel_users, channel_history, POST_MATCHES, SESSION)
             print("Updating history with new prompts.")
             write_history(channel_history, channel_history_file)
-
-        # if it's been less than the minimum number of days needed to do more work exit.
-        else:
-            print(f"It has only been {days_since_last_run} days since last run.")
-            print("Nothing to do. Goodbye!")
-            sys.exit(1)
 
     # push updated history to s3 if backed by s3
     if S3_BUCKET_NAME is not None and POST_MATCHES:
@@ -105,7 +110,8 @@ def get_history_df(history_file: str) -> List[dict]:
 
 def execute_channel_match_prompts(
     channel_id: str,
-    match_history_df: DataFrame,
+    channel_users: List[dict],
+    match_history: List[dict],
     post_to_slack: bool,
     session: WebClient
 ) -> DataFrame:
@@ -120,19 +126,16 @@ def execute_channel_match_prompts(
                 matches_to_prompt.append(sorted_match)
     if len(matches_to_prompt) > 0:
         print(f"Prompting {len(matches_to_prompt)} matches")
-        prompt_match_list(channel_id, matches_to_prompt, post_to_slack, session)
+        if post_to_slack:
+            prompt_match_list(channel_users, matches_to_prompt, session)
 
     return match_history_df
 
 
-def prompt_match_list(channel_id: str, matches_to_prompt: List[List[str]], post_to_slack: bool, session: WebClient):
-    print(f"Fetching users in channel: {channel_id}")
-    channel_users = su.get_user_df(session, channel_id)
-    print(f"Successfully found: {len(channel_users)} users in channel: {channel_id}")
-    if post_to_slack:
-        with ThreadPoolExecutor() as executor:
-            for match in matches_to_prompt:
-                executor.submit(send_prompt_message, channel_users, match, session)
+def prompt_match_list(channel_users: List[dict], matches_to_prompt: List[dict], session: WebClient):
+    with ThreadPoolExecutor() as executor:
+        for match in matches_to_prompt:
+            executor.submit(send_prompt_message, channel_users, match, session)
 
 
 def send_prompt_message(channel_users: DataFrame, match: List[str], session):
@@ -148,18 +151,16 @@ def send_prompt_message(channel_users: DataFrame, match: List[str], session):
     )
 
 
-def execute_channel_matches(channel_id: str, history: List[dict], post_to_slack: bool, session: WebClient) -> List[dict]:
+def execute_channel_matches(channel_id: str, channel_users: List[dict], history: List[dict], post_to_slack: bool, session: WebClient) -> List[dict]:
     """
     Gather user information, calculate best matches, and post those matches to Slack.
     :param channel_id: Slack channel
+    :param channel_users: List of user information: names, ids
     :param history: History of previous matches for this channel
     :param post_to_slack: yes/no send Slack DMs
     :param session: Slack API session
     :return: a list of matches made this time
     """
-    print(f"Fetching users in channel: {channel_id}")
-    channel_users = su.get_user_df(session, channel_id)
-    print(f"Successfully found: {len(channel_users)} users")
     print("Generating optimal matches, `this could take some time...")
     matches = create_matches(channel_users, history)
     print(f"The following matches have been found: {matches}")
