@@ -276,6 +276,7 @@ def calculate_match_strength(user1: Dict[str, str], user2: Dict[str, str], past_
     is_diff_tz = (user1['tz'] != user2['tz'])
 
     # Users in different timezones prioritised, but won't match the same person again until you have met everyone else
+    # some randomness added for the case when multiple potential matches share a match score so we don't get some unintended default alphabetic order or alike.
     return 100*is_diff_tz - 200*times_paired + random.randint(0, 50)
 
 
