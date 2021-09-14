@@ -13,7 +13,6 @@ from os import path
 from slack_sdk import WebClient
 from botocore.exceptions import ClientError
 
-VERSION = "./_version.py"
 HISTORY_DIR = "./doughnut_history/"
 DAYS_BETWEEN_RUNS = 14
 PROMPT_DAYS = DAYS_BETWEEN_RUNS / 2
@@ -41,11 +40,6 @@ def main():
         pull_history_from_s3(S3_BUCKET_NAME, HISTORY_DIR)
     else:
         print("No S3 bucket configured. Using local history")
-
-    # read in version information
-    version_dict = {}
-    with open(VERSION) as file:
-        exec(file.read(), version_dict)
 
     # for each channel, execute matches
     channels: List[str] = CHANNELS.split(",")
