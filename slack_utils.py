@@ -37,8 +37,8 @@ def get_user_df(session, channel_id) -> List[dict]:
                 and not user['deleted']
                 and not user['is_restricted']
                 and not user['is_bot']
-                and not str(user['name']).contains('donut')
-                and not str(user['name']).contains('doughnut')):
+                and 'donut' not in user['name']
+                and 'doughnut' not in user['name']):
 
             user_info_list.append({
                 'id': user['id'],
