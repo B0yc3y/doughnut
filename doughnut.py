@@ -1,4 +1,5 @@
 import csv
+import random
 import sys
 from concurrent.futures import ThreadPoolExecutor
 
@@ -273,7 +274,7 @@ def calculate_match_strength(user1: Dict[str, str], user2: Dict[str, str], past_
     is_diff_tz = (user1['tz'] != user2['tz'])
 
     # Users in different timezones prioritised, but won't match the same person again until you have met everyone else
-    return is_diff_tz - 2*times_paired
+    return 100*is_diff_tz - 200*times_paired + random.randint(0, 50)
 
 
 def get_history_file_path(channel_id, channel_name, history_dir):
