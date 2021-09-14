@@ -167,7 +167,7 @@ def execute_channel_matches(channel_id: str, channel_users: List[dict], history:
     :param channel_id: Slack channel
     :param channel_users: List of user information: names, ids
     :param history: History of previous matches for this channel
-    :param post_to_slack: yes/no send Slack DMs
+    :param post_to_slack: yes/no send messages in Slack channel/DMs
     :param session: Slack API session
     :return: a list of matches made this time
     """
