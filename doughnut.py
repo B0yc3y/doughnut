@@ -13,7 +13,6 @@ from os import path
 from slack_sdk import WebClient
 from botocore.exceptions import ClientError
 
-VERSION = "./_version.py"
 HISTORY_DIR = "./doughnut_history/"
 DAYS_BETWEEN_RUNS = 14
 PROMPT_DAYS = DAYS_BETWEEN_RUNS / 2
@@ -42,17 +41,12 @@ def main():
     else:
         print("No S3 bucket configured. Using local history")
 
-    # read in version information
-    version_dict = {}
-    with open(VERSION) as file:
-        exec(file.read(), version_dict)
-
     # for each channel, execute matches
     channels: List[str] = CHANNELS.split(",")
     for channel in channels:
         channel_name, channel_id = channel.split(":")
         channel_history_file: str = get_history_file_path(channel_id, channel_name, HISTORY_DIR)
-        channel_history: List[dict] = get_history_df(channel_history_file)
+        channel_history: List[dict] = parse_history_file(channel_history_file)
         last_run_date: date = get_last_run_date(channel_history)
         days_since_last_run: int = abs(date.today() - last_run_date).days
 
@@ -65,7 +59,7 @@ def main():
             sys.exit(1)
 
         print(f"Fetching users in channel: {channel_id}")
-        channel_users = su.get_user_df(SESSION, channel_id)
+        channel_users = su.get_user_list(SESSION, channel_id)
         print(f"Successfully found: {len(channel_users)} users")
 
         # if it's been more than enough days, run more matches.
@@ -99,9 +93,21 @@ def get_last_run_date(channel_history: List[dict]) -> date:
         return date.fromisoformat(channel_history[-1]['match_date'])
 
 
-def get_history_df(history_file: str) -> List[dict]:
+def parse_history_file(history_file: str) -> List[dict]:
     """
     Parse a CSV match history file
+
+    Example CSV:
+    name1, name2, match_date, prompted
+    alice, bob, 2021-08-31, 1
+    bob, charlie, 2021-09-14, 0
+
+    Example parsed output:
+    [
+        {"name1": "alice", "name2": "bob", "match_date": "2021-08-31", "prompted": "1",
+        {"name1": "bob", "name2": "charlie", "match_date": "2021-09-14", "prompted": "0"
+    ]
+
     :param history_file: filepath to read from
     :return: A list where each item is a single previously-held match
     """
@@ -167,7 +173,7 @@ def execute_channel_matches(channel_id: str, channel_users: List[dict], history:
     :param channel_id: Slack channel
     :param channel_users: List of user information: names, ids
     :param history: History of previous matches for this channel
-    :param post_to_slack: yes/no send Slack DMs
+    :param post_to_slack: yes/no send messages in Slack channel/DMs
     :param session: Slack API session
     :return: a list of matches made this time
     """
@@ -187,12 +193,12 @@ def execute_channel_matches(channel_id: str, channel_users: List[dict], history:
     return new_match_history
 
 
-def create_matches(user_df: List[dict], history_df: List[dict]) -> List[dict]:
+def create_matches(channel_users: List[dict], history: List[dict]) -> List[dict]:
     """
     Choose which users should be paired together this time
-    :param user_df: A list of active users in this channel
-    :param history_df: A list of previously matched pairs (names and dates)
-    :return: A list of pairings (same format as history_df)
+    :param channel_users: A list of active users in this channel
+    :param history: A list of previously matched pairs (names and dates)
+    :return: A list of pairings (same format as history)
     """
 
     """
@@ -204,7 +210,7 @@ def create_matches(user_df: List[dict], history_df: List[dict]) -> List[dict]:
         'Charlie': ['2020-12-25']
     """
     match_counts: Dict[str, Dict[str, List[str]]] = dict()
-    for match in history_df:
+    for match in history:
         person_a = match['name1']
         person_b = match['name2']
 
@@ -216,11 +222,11 @@ def create_matches(user_df: List[dict], history_df: List[dict]) -> List[dict]:
     {name1, name2, match_strength}
     """
     possible_matches = []
-    for i in range(len(user_df)):
-        user1 = user_df[i]
+    for i in range(len(channel_users)):
+        user1 = channel_users[i]
         user1['matched'] = False
-        for j in range(i + 1, len(user_df)):
-            user2 = user_df[j]
+        for j in range(i + 1, len(channel_users)):
+            user2 = channel_users[j]
 
             match_strength = calculate_match_strength(user1, user2, match_counts)
             possible_matches.append({
@@ -241,10 +247,23 @@ def create_matches(user_df: List[dict], history_df: List[dict]) -> List[dict]:
 
     # Find if anyone wasn't matched, make a second match with their top option
     # This should only happen if we have an odd number of users
-    for user in user_df:
+    for user in channel_users:
         if not user['matched']:
-            # TODO: How to efficiently find their top match without traversing the whole potential_matches array again?
-            print('Could not find a match for %s' % user['name'])
+            max_match: int
+            max_match_partner: Dict
+            for partner in channel_users:
+                if partner['name'] != user['name']:
+                    this_match_strength = calculate_match_strength(user, partner, match_counts)
+                    if max_match is None or this_match_strength > max_match:
+                        max_match = this_match_strength
+                        max_match_partner = partner
+
+            user['matched'] = True
+            chosen_matches.append({
+                'user1': user,
+                'user2': max_match_partner,
+                'match_strength': max_match
+            })
 
     return chosen_matches
 
@@ -276,6 +295,7 @@ def calculate_match_strength(user1: Dict[str, str], user2: Dict[str, str], past_
     is_diff_tz = (user1['tz'] != user2['tz'])
 
     # Users in different timezones prioritised, but won't match the same person again until you have met everyone else
+    # some randomness added for the case when multiple potential matches share a match score so we don't get some unintended default alphabetic order or alike.
     return 100*is_diff_tz - 200*times_paired + random.randint(0, 50)
 
 
@@ -293,10 +313,10 @@ def write_history(history: List[dict], filepath: str):
         writer.writerows(history)
 
 
-def post_matches_to_slack(channel_id, match_df, session):
+def post_matches_to_slack(channel_id, matches, session):
     print(f"Posting matches to channel: {channel_id}.")
     print("Setting up DM channels for matched pairs.")
-    su.post_matches(session, match_df, channel_id)
+    su.post_matches(session, matches, channel_id)
 
 
 def pull_history_from_s3(bucket_name: str, out_dir: str = "/tmp/"):
