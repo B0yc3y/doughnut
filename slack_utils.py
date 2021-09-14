@@ -7,7 +7,7 @@ from slack_sdk import WebClient
 SLACK_USER = '@doughnut-bot'
 
 
-def get_user_df(session, channel_id) -> List[dict]:
+def get_user_list(session, channel_id) -> List[dict]:
     """
     Fetch basic details for all active, non-bot users in this channel
     :param session: a current Slack API session
