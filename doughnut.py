@@ -58,8 +58,12 @@ def main():
             print("Nothing to do. Goodbye!")
             sys.exit(1)
 
-        print(f"Fetching users in channel: {channel_id}")
+        print(f"Fetching users in channel: {channel}")
         channel_users = su.get_user_list(SESSION, channel_id)
+        if len(channel_users) == 0:
+            print(f"No users in the {channel_name} channel, skipping")
+            continue
+
         print(f"Successfully found: {len(channel_users)} users")
 
         # if it's been more than enough days, run more matches.
