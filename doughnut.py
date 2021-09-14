@@ -125,10 +125,10 @@ def execute_channel_match_prompts(
     print(f"Checking for matches to prompt in channel: {channel_id}")
     matches_to_prompt: List[dict] = []
     for match in match_history:
-        if not match['prompted']:
+        if match['prompted'] != '1':
             days_since_last_run: int = abs(date.today() - date.fromisoformat(match['match_date'])).days
             if days_since_last_run >= PROMPT_DAYS:
-                match['prompted'] = 1
+                match['prompted'] = '1'
                 matches_to_prompt.append(match)
 
     if len(matches_to_prompt) > 0:
