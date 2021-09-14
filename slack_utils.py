@@ -1,7 +1,5 @@
 import random
-from os import path
 from concurrent.futures import ThreadPoolExecutor
-import pandas as pd
 from typing import List, Dict
 
 from pandas import DataFrame
@@ -67,14 +65,6 @@ def get_all_user_data(users, session) -> List[Dict]:
             result = running_task.result()
             user_details.append(result)
     return user_details
-
-
-def update_history(match_df, history_file, concat_df: bool = True):
-    if concat_df:
-        history_df: pd.DataFrame = pd.read_csv(history_file) if path.exists(history_file) else pd.DataFrame()
-        match_df = pd.concat([history_df, match_df])
-
-    match_df.to_csv(history_file, index=False)
 
 
 def get_user_id_from_name(user_df: DataFrame, name: str) -> str:

@@ -17,6 +17,7 @@ VERSION = "./_version.py"
 HISTORY_DIR = "./doughnut_history/"
 DAYS_BETWEEN_RUNS = 14
 PROMPT_DAYS = DAYS_BETWEEN_RUNS / 2
+CSV_FIELD_NAMES = ['name1', 'name2', 'match_date', 'prompted']
 
 CHANNELS = os.environ.get("SLACK_CHANNELS", "donuts:C015239UFM2")
 POST_MATCHES = os.environ.get("POST_MATCHES", False)
@@ -60,13 +61,14 @@ def main():
         if days_since_last_run >= DAYS_BETWEEN_RUNS:
             matches = execute_channel_matches(channel_id, channel_history, POST_MATCHES, SESSION)
             print("Updating history with new matches.")
-            su.update_history(matches, channel_history_file)
+            channel_history += matches
+            write_history(channel_history, channel_history_file)
 
         # if it's been more than match days/2, prompt people to check if they've made a time.
         elif days_since_last_run >= PROMPT_DAYS:
             matches = execute_channel_match_prompts(channel_id, channel_history, POST_MATCHES, SESSION)
-            print("Updating history with new prompts")
-            su.update_history(matches, channel_history_file, False)
+            print("Updating history with new prompts.")
+            write_history(channel_history, channel_history_file)
 
         # if it's been less than the minimum number of days needed to do more work exit.
         else:
@@ -263,6 +265,13 @@ def get_history_file_path(channel_id, channel_name, history_dir):
     if history_dir is not None:
         channel_history_file = f"{history_dir}{channel_history_file}"
     return channel_history_file
+
+
+def write_history(history: List[dict], filepath: str):
+    with open(filepath, 'w', newline='') as csv_file:
+        writer = csv.DictWriter(csv_file, fieldnames=CSV_FIELD_NAMES)
+        writer.writeheader()
+        writer.writerows(history)
 
 
 def post_matches_to_slack(channel_id, match_df, session):
