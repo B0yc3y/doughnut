@@ -172,7 +172,15 @@ def execute_channel_matches(channel_id: str, channel_users: List[dict], history:
     print(f"The following matches have been found: {matches}")
     if post_to_slack:
         post_matches_to_slack(channel_id, matches, session)
-    return matches
+
+    today = dt.strftime(dt.now(), "%Y-%m-%d")
+    new_match_history = [{
+        'name1': m['user1']['name'],
+        'name2': m['user2']['name'],
+        'match_date': today,
+        'prompted': 0
+    } for m in matches]
+    return new_match_history
 
 
 def create_matches(user_df: List[dict], history_df: List[dict]) -> List[dict]:
