@@ -102,6 +102,18 @@ def get_last_run_date(channel_history: List[dict]) -> date:
 def get_history_df(history_file: str) -> List[dict]:
     """
     Parse a CSV match history file
+
+    Example CSV:
+    name1, name2, match_date, prompted
+    alice, bob, 2021-08-31, 1
+    bob, charlie, 2021-09-14, 0
+
+    Example parsed output:
+    [
+        {"name1": "alice", "name2": "bob", "match_date": "2021-08-31", "prompted": "1",
+        {"name1": "bob", "name2": "charlie", "match_date": "2021-09-14", "prompted": "0"
+    ]
+
     :param history_file: filepath to read from
     :return: A list where each item is a single previously-held match
     """
