@@ -106,7 +106,7 @@ def create_match_dm(conv_id: str, user1_id: str, user2_id: str, session: WebClie
                                   f'Please use this DM channel to set up time to connect!',
                              as_user=SLACK_USER)
     session.chat_postMessage(channel=conv_id,
-                             text=f'<@{organiser}> you have been selected to organise the meeting',
+                             text=f'<@{organiser}> you have been selected to organise the meeting.',
                              as_user=SLACK_USER)
 
 
@@ -118,8 +118,9 @@ def post_matches(session: WebClient, matches: List[dict], my_channel_id: str):
     create_match_dms(matches, session)
 
     message: str = 'The new round of pairings are in! You should have received a DM from _doughnut with your new ' \
-                   'doughnut partner. Please post any feedback here. (If there are an odd number of participants ' \
-                   'someone will get two matches) '
+                   'doughnut partner. If there are an odd number of participants, ' \
+                   'someone will get two matches.\n' \
+                   'Please post any issues to https://github.com/B0yc3y/doughnut/issues'
     for match in matches:
         user1_id = match['user1']['id']
         user2_id = match['user2']['id']
