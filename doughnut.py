@@ -95,7 +95,7 @@ def get_last_run_date(channel_history: List[dict]) -> date:
         return date.min
     else:
         # Assumed sorted by date
-        return date.fromisoformat(channel_history[0]['match_date'])
+        return date.fromisoformat(channel_history[-1]['match_date'])
 
 
 def get_history_df(history_file: str) -> List[dict]:
@@ -105,7 +105,8 @@ def get_history_df(history_file: str) -> List[dict]:
     :return: A list where each item is a single previously-held match
     """
     if path.exists(history_file):
-        return [{k: v for k, v in row.items()} for row in csv.DictReader(history_file, skipInitalSpace=True)]
+        with open(history_file, 'r', newline='') as csv_file:
+            return [{k: v for k, v in row.items()} for row in csv.DictReader(csv_file, skipinitialspace=True)]
     return []
 
 
