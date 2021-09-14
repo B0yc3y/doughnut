@@ -147,7 +147,7 @@ def prompt_match_list(user_id_lookup: Dict[str, str], matches_to_prompt: List[Di
 
 
 def send_prompt_message(user_id_lookup: Dict[str, str], match: Dict[str, str], session: WebClient):
-    message = "It's the halfway point, checking in to ensure the session has been scheduled or completed"
+    message = "It's the halfway point, just checking in to ensure the session has been scheduled or completed :)"
     user1_name: str = match['name1']
     user2_name: str = match['name2']
     su.direct_message_match(
