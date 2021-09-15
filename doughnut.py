@@ -59,7 +59,7 @@ def main():
             continue
 
         print(f"Fetching users in channel: {channel}")
-        channel_users = su.get_user_list(SESSION, channel_id)
+        channel_users: List[Dict[str, str]] = su.get_user_list(SESSION, channel_id)
         if len(channel_users) <= 1:
             print(f"Not enough users in the {channel_name} channel, skipping")
             continue
@@ -68,7 +68,7 @@ def main():
 
         # if it's been more than enough days, run more matches.
         if days_since_last_run >= DAYS_BETWEEN_RUNS:
-            matches = execute_channel_matches(channel_id, channel_users, channel_history, POST_MATCHES, SESSION)
+            matches: List[Dict[str, str]] = execute_channel_matches(channel_id, channel_users, channel_history, POST_MATCHES, SESSION)
             if len(matches) == 0:
                 print(f"No matches found for users in the {channel_name} channel, skipping")
                 continue
@@ -78,8 +78,8 @@ def main():
 
         # if it's been more than match days/2, prompt people to check if they've made a time.
         else:
-            user_id_lookup = {u['name']: u['id'] for u in channel_users}
-            users_prompted = execute_channel_match_prompts(channel_id, user_id_lookup, channel_history, POST_MATCHES, SESSION)
+            user_id_lookup: Dict[str, str] = {u['name']: u['id'] for u in channel_users}
+            users_prompted: int = execute_channel_match_prompts(channel_id, user_id_lookup, channel_history, POST_MATCHES, SESSION)
             if users_prompted == 0:
                 print(f"No users need prompting in the {channel_name} channel, skipping")
                 continue
@@ -187,13 +187,13 @@ def execute_channel_matches(channel_id: str, channel_users: List[Dict[str, str]]
     :return: a list of matches made this time
     """
     print("Generating optimal matches, this could take some time...")
-    matches = create_matches(channel_users, history)
+    matches: List[Dict] = create_matches(channel_users, history)
     print(f"The following matches have been found: {matches}")
     if post_to_slack:
         post_matches_to_slack(channel_id, matches, session)
 
-    today = dt.strftime(dt.now(), "%Y-%m-%d")
-    new_match_history = [{
+    today: str = dt.strftime(dt.now(), "%Y-%m-%d")
+    new_match_history: List[Dict[str, str]] = [{
         'name1': m['user1']['name'],
         'name2': m['user2']['name'],
         'match_date': today,
@@ -202,7 +202,7 @@ def execute_channel_matches(channel_id: str, channel_users: List[Dict[str, str]]
     return new_match_history
 
 
-def create_matches(channel_users: List[Dict[str, str]], history: List[Dict[str, str]]) -> List[Dict]:
+def create_matches(channel_users: List[Dict], history: List[Dict[str, str]]) -> List[Dict]:
     """
     Choose which users should be paired together this time
     :param channel_users: A list of active users in this channel
@@ -220,8 +220,8 @@ def create_matches(channel_users: List[Dict[str, str]], history: List[Dict[str, 
     """
     match_counts: Dict[str, Dict[str, List[str]]] = dict()
     for match in history:
-        person_a = match['name1']
-        person_b = match['name2']
+        person_a: str = match['name1']
+        person_b: str = match['name2']
 
         record_match(person_a, person_b, match['match_date'], match_counts)
         record_match(person_b, person_a, match['match_date'], match_counts)
@@ -230,14 +230,14 @@ def create_matches(channel_users: List[Dict[str, str]], history: List[Dict[str, 
     Build a list of all potential pairings with a score for each:
     {name1, name2, match_strength}
     """
-    possible_matches = []
+    possible_matches: List[Dict] = []
     for i in range(len(channel_users)):
-        user1 = channel_users[i]
+        user1: Dict = channel_users[i]
         user1['matched'] = False
         for j in range(i + 1, len(channel_users)):
-            user2 = channel_users[j]
+            user2: Dict = channel_users[j]
 
-            match_strength = calculate_match_strength(user1, user2, match_counts)
+            match_strength: int = calculate_match_strength(user1, user2, match_counts)
             possible_matches.append({
                 'user1': user1,
                 'user2': user2,
@@ -247,7 +247,7 @@ def create_matches(channel_users: List[Dict[str, str]], history: List[Dict[str, 
     """
     Iterate through potential matches from best to worst, marking users as paired off as we go
     """
-    chosen_matches = []
+    chosen_matches: List[Dict] = []
     for potential in sorted(possible_matches, key=lambda v: v['match_strength'], reverse=True):
         if not (potential['user1']['matched'] or potential['user2']['matched']):
             chosen_matches.append(potential)
@@ -290,12 +290,12 @@ def record_match(host: str, guest: str, meet_date: str, matches: Dict[str, Dict[
         matches[host][guest].append(meet_date)
 
 
-def calculate_match_strength(user1: Dict[str, str], user2: Dict[str, str], past_matches: Dict[str, Dict[str, List[str]]]) -> int:
+def calculate_match_strength(user1: Dict, user2: Dict, past_matches: Dict[str, Dict[str, List[str]]]) -> int:
     """
     Provides a weighting/metric for how "good" a potential pairing is.
     """
-    name1 = user1['name']
-    name2 = user2['name']
+    name1: str = user1['name']
+    name2: str = user2['name']
     if name1 not in past_matches or name2 not in past_matches[name1]:
         times_paired = 0
     else:
@@ -308,7 +308,7 @@ def calculate_match_strength(user1: Dict[str, str], user2: Dict[str, str], past_
     return 100*is_diff_tz - 200*times_paired + random.randint(0, 50)
 
 
-def get_history_file_path(channel_id, channel_name, history_dir):
+def get_history_file_path(channel_id: str, channel_name: str, history_dir: str):
     channel_history_file = f"{channel_name}_{channel_id}_history.csv"
     if history_dir is not None:
         channel_history_file = f"{history_dir}{channel_history_file}"
@@ -322,7 +322,7 @@ def write_history(history: List[Dict[str, str]], filepath: str):
         writer.writerows(history)
 
 
-def post_matches_to_slack(channel_id, matches, session):
+def post_matches_to_slack(channel_id: str, matches: List[Dict], session: WebClient):
     print(f"Posting matches to channel: {channel_id}.")
     print("Setting up DM channels for matched pairs.")
     su.post_matches(session, matches, channel_id)
@@ -340,7 +340,7 @@ def pull_history_from_s3(bucket_name: str, out_dir: str = "/tmp/"):
 def push_history_to_s3(bucket_name: str, channel: str, history_dir: str = "/tmp/"):
     channel_name, channel_id = channel.split(":")
     local_file: str = get_history_file_path(channel_id, channel_name, history_dir)
-    s3_file_name = local_file.split("/")[-1]
+    s3_file_name: str = local_file.split("/")[-1]
     file_uploaded: bool = upload_file(local_file, bucket_name, s3_file_name)
     if file_uploaded:
         print(f"Uploaded history for channel: {channel} to s3://{bucket_name}/{s3_file_name}")
@@ -348,7 +348,7 @@ def push_history_to_s3(bucket_name: str, channel: str, history_dir: str = "/tmp/
         print(f"Unable to upload history for channel: {channel}")
 
 
-def upload_file(file_name, bucket, object_name=None):
+def upload_file(file_name: str, bucket: str, object_name: str = None):
     """Upload a file to an S3 bucket
 
     :param file_name: File to upload
