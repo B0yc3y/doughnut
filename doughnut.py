@@ -50,18 +50,18 @@ def main():
         last_run_date: date = get_last_run_date(channel_history)
         days_since_last_run: int = abs(date.today() - last_run_date).days
 
-        print(f"Days since last run: {days_since_last_run}")
+        print(f"Days since last run in {channel_name}: {days_since_last_run}")
 
-        # if it's been less than the minimum number of days needed to do more work exit.
+        # if it's been less than the minimum number of days needed to do more work, skip this channel.
         if days_since_last_run < PROMPT_DAYS:
             print(f"It has only been {days_since_last_run} days since last run.")
-            print("Nothing to do. Goodbye!")
-            sys.exit(1)
+            print(f"Nothing to do for {channel}")
+            continue
 
         print(f"Fetching users in channel: {channel}")
         channel_users = su.get_user_list(SESSION, channel_id)
-        if len(channel_users) == 0:
-            print(f"No users in the {channel_name} channel, skipping")
+        if len(channel_users) <= 1:
+            print(f"Not enough users in the {channel_name} channel, skipping")
             continue
 
         print(f"Successfully found: {len(channel_users)} users")
@@ -69,6 +69,9 @@ def main():
         # if it's been more than enough days, run more matches.
         if days_since_last_run >= DAYS_BETWEEN_RUNS:
             matches = execute_channel_matches(channel_id, channel_users, channel_history, POST_MATCHES, SESSION)
+            if len(matches) == 0:
+                print(f"No matches found for users in the {channel_name} channel, skipping")
+                continue
             print("Updating history with new matches.")
             channel_history += matches
             write_history(channel_history, channel_history_file)
@@ -77,13 +80,15 @@ def main():
         else:
             user_id_lookup = {u['name']: u['id'] for u in channel_users}
             users_prompted = execute_channel_match_prompts(channel_id, user_id_lookup, channel_history, POST_MATCHES, SESSION)
-            if users_prompted > 0:
-                print("Updating history with new prompts.")
-                write_history(channel_history, channel_history_file)
+            if users_prompted == 0:
+                print(f"No users need prompting in the {channel_name} channel, skipping")
+                continue
+            print("Updating history with new prompts.")
+            write_history(channel_history, channel_history_file)
 
-    # push updated history to s3 if backed by s3
-    if S3_BUCKET_NAME is not None and POST_MATCHES:
-        push_history_to_s3(S3_BUCKET_NAME, channels, HISTORY_DIR)
+        # push updated history to s3 if backed by s3
+        if S3_BUCKET_NAME is not None and POST_MATCHES:
+            push_history_to_s3(S3_BUCKET_NAME, channel, HISTORY_DIR)
 
     print("Done!")
     print("Thanks for using doughnut! Goodbye!")
@@ -332,18 +337,15 @@ def pull_history_from_s3(bucket_name: str, out_dir: str = "/tmp/"):
         bucket.download_file(s3_object.key, f"{out_dir}{filename}")
 
 
-def push_history_to_s3(bucket_name: str, channels: List[str], history_dir: str = "/tmp/"):
-    for channel in channels:
-        channel_name, channel_id = channel.split(":")
-        local_file: str = get_history_file_path(channel_id, channel_name, history_dir)
-        s3_file_name = local_file.split("/")[-1]
-        file_uploaded: bool = upload_file(local_file, bucket_name, s3_file_name)
-        if file_uploaded:
-            print(f"Uploaded history for channel: {channel} to s3://{bucket_name}/{s3_file_name}")
-        else:
-            print(f"Unable to upload history for channel: {channel}")
-
-    print(f"Finished updating history")
+def push_history_to_s3(bucket_name: str, channel: str, history_dir: str = "/tmp/"):
+    channel_name, channel_id = channel.split(":")
+    local_file: str = get_history_file_path(channel_id, channel_name, history_dir)
+    s3_file_name = local_file.split("/")[-1]
+    file_uploaded: bool = upload_file(local_file, bucket_name, s3_file_name)
+    if file_uploaded:
+        print(f"Uploaded history for channel: {channel} to s3://{bucket_name}/{s3_file_name}")
+    else:
+        print(f"Unable to upload history for channel: {channel}")
 
 
 def upload_file(file_name, bucket, object_name=None):
