@@ -1,6 +1,5 @@
 import csv
 import random
-import sys
 from concurrent.futures import ThreadPoolExecutor
 
 import slack_utils as su
