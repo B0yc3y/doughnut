@@ -7,7 +7,7 @@ from slack_sdk import WebClient
 SLACK_USER = '@doughnut-bot'
 
 
-def get_user_list(session, channel_id) -> List[dict]:
+def get_user_list(session, channel_id) -> List[Dict[str, str]]:
     """
     Fetch basic details for all active, non-bot users in this channel
     :param session: a current Slack API session
@@ -57,7 +57,7 @@ def get_all_user_data(users, session) -> List[Dict]:
     return user_details
 
 
-def create_match_dms(matches: List[dict], session: WebClient):
+def create_match_dms(matches: List[Dict], session: WebClient):
     with ThreadPoolExecutor() as executor:
         for match in matches:
             user1_id = match['user1']['id']
@@ -96,7 +96,7 @@ def create_match_dm(conv_id: str, user1_id: str, user2_id: str, session: WebClie
                              as_user=SLACK_USER)
 
 
-def post_matches(session: WebClient, matches: List[dict], my_channel_id: str):
+def post_matches(session: WebClient, matches: List[Dict], my_channel_id: str):
     """
     Creates a new DM for each pair of users to introduce them,
     and also posts a list of all pairings to the channel

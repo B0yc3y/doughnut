@@ -46,7 +46,7 @@ def main():
     for channel in channels:
         channel_name, channel_id = channel.split(":")
         channel_history_file: str = get_history_file_path(channel_id, channel_name, HISTORY_DIR)
-        channel_history: List[dict] = parse_history_file(channel_history_file)
+        channel_history: List[Dict[str, str]] = parse_history_file(channel_history_file)
         last_run_date: date = get_last_run_date(channel_history)
         days_since_last_run: int = abs(date.today() - last_run_date).days
 
@@ -94,7 +94,7 @@ def main():
     print("Thanks for using doughnut! Goodbye!")
 
 
-def get_last_run_date(channel_history: List[dict]) -> date:
+def get_last_run_date(channel_history: List[Dict[str, str]]) -> date:
     if len(channel_history) == 0:
         return date.min
     else:
@@ -102,7 +102,7 @@ def get_last_run_date(channel_history: List[dict]) -> date:
         return date.fromisoformat(channel_history[-1]['match_date'])
 
 
-def parse_history_file(history_file: str) -> List[dict]:
+def parse_history_file(history_file: str) -> List[Dict[str, str]]:
     """
     Parse a CSV match history file
 
@@ -129,7 +129,7 @@ def parse_history_file(history_file: str) -> List[dict]:
 def execute_channel_match_prompts(
     channel_id: str,
     user_id_lookup: Dict[str, str],
-    match_history: List[dict],
+    match_history: List[Dict[str, str]],
     post_to_slack: bool,
     session: WebClient
 ) -> int:
@@ -139,7 +139,7 @@ def execute_channel_match_prompts(
     :return: count of users prompted
     """
     print(f"Checking for matches to prompt in channel: {channel_id}")
-    matches_to_prompt: List[dict] = []
+    matches_to_prompt: List[Dict[str, str]] = []
     for match in match_history:
         if match['prompted'] != '1':
             days_since_last_run: int = abs(date.today() - date.fromisoformat(match['match_date'])).days
@@ -176,7 +176,7 @@ def send_prompt_message(user_id_lookup: Dict[str, str], match: Dict[str, str], s
     )
 
 
-def execute_channel_matches(channel_id: str, channel_users: List[dict], history: List[dict], post_to_slack: bool, session: WebClient) -> List[dict]:
+def execute_channel_matches(channel_id: str, channel_users: List[Dict[str, str]], history: List[Dict], post_to_slack: bool, session: WebClient) -> List[Dict[str, str]]:
     """
     Gather user information, calculate best matches, and post those matches to Slack.
     :param channel_id: Slack channel
@@ -197,12 +197,12 @@ def execute_channel_matches(channel_id: str, channel_users: List[dict], history:
         'name1': m['user1']['name'],
         'name2': m['user2']['name'],
         'match_date': today,
-        'prompted': 0
+        'prompted': '0'
     } for m in matches]
     return new_match_history
 
 
-def create_matches(channel_users: List[dict], history: List[dict]) -> List[dict]:
+def create_matches(channel_users: List[Dict[str, str]], history: List[Dict[str, str]]) -> List[Dict]:
     """
     Choose which users should be paired together this time
     :param channel_users: A list of active users in this channel
@@ -315,7 +315,7 @@ def get_history_file_path(channel_id, channel_name, history_dir):
     return channel_history_file
 
 
-def write_history(history: List[dict], filepath: str):
+def write_history(history: List[Dict[str, str]], filepath: str):
     with open(filepath, 'w', newline='') as csv_file:
         writer = csv.DictWriter(csv_file, fieldnames=CSV_FIELD_NAMES)
         writer.writeheader()
