@@ -3,26 +3,27 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import List, Dict
 
 from slack_sdk import WebClient
+from slack_sdk.web import SlackResponse
 
 SLACK_USER = '@doughnut-bot'
 
 
-def get_user_list(session, channel_id) -> List[Dict[str, str]]:
+def get_user_list(session: WebClient, channel_id: str) -> List[Dict[str, str]]:
     """
     Fetch basic details for all active, non-bot users in this channel
     :param session: a current Slack API session
     :param channel_id: Slack channel unique ID
     :return: A list with an {id, name, real_name, timezone} entry for each active, non-bot user in this channel
     """
-    user_info_list = []
+    user_info_list: List[Dict[str, str]] = []
 
-    response = session.conversations_members(channel=channel_id, limit=200)
-    user_list = response['members']
+    response: SlackResponse = session.conversations_members(channel=channel_id, limit=200)
+    user_list: List[str] = response['members']
 
-    user_detail_responses = get_all_user_data(user_list, session)
+    user_detail_responses: List[SlackResponse] = get_all_user_data(user_list, session)
 
-    for resp in user_detail_responses:
-        user = resp['user']
+    for single_user_resp in user_detail_responses:
+        user = single_user_resp['user']
         if (user is not None
                 and not user['deleted']
                 and not user['is_restricted']
@@ -43,16 +44,16 @@ def get_user_list(session, channel_id) -> List[Dict[str, str]]:
     return user_info_list
 
 
-def get_user_wrapper(user, session):
+def get_user_wrapper(user: str, session: WebClient) -> SlackResponse:
     return session.users_info(user=user, include_locale=True)
 
 
-def get_all_user_data(users, session) -> List[Dict]:
-    user_details = []
+def get_all_user_data(users: List[str], session: WebClient) -> List[SlackResponse]:
+    user_details: List[SlackResponse] = []
     with ThreadPoolExecutor() as executor:
         running_tasks = [executor.submit(get_user_wrapper, user, session) for user in users]
         for running_task in running_tasks:
-            result = running_task.result()
+            result: SlackResponse = running_task.result()
             user_details.append(result)
     return user_details
 
@@ -60,21 +61,21 @@ def get_all_user_data(users, session) -> List[Dict]:
 def create_match_dms(matches: List[Dict], session: WebClient):
     with ThreadPoolExecutor() as executor:
         for match in matches:
-            user1_id = match['user1']['id']
-            user2_id = match['user2']['id']
+            user1_id: str = match['user1']['id']
+            user2_id: str = match['user2']['id']
             conversation_id_future = executor.submit(get_match_conversation_id, [user1_id, user2_id], session)
             executor.submit(create_match_dm, conversation_id_future.result(), user1_id, user2_id, session)
 
 
 def get_match_conversation_id(user_ids: List[str], session: WebClient) -> str:
-    response = session.conversations_open(users=user_ids, return_im=True)
+    response: SlackResponse = session.conversations_open(users=user_ids, return_im=True)
     return response['channel']['id']
 
 
 def direct_message_match(user1_name: str, user2_name: str, user_id_lookup: Dict[str, str], message: str, session: WebClient):
-    user1_id = user_id_lookup[user1_name]
-    user2_id = user_id_lookup[user2_name]
-    conv_id = get_match_conversation_id([user1_id, user2_id], session)
+    user1_id: str = user_id_lookup[user1_name]
+    user2_id: str = user_id_lookup[user2_name]
+    conv_id: str = get_match_conversation_id([user1_id, user2_id], session)
     session.chat_postMessage(
         channel=conv_id,
         as_user=SLACK_USER,
@@ -108,8 +109,8 @@ def post_matches(session: WebClient, matches: List[Dict], my_channel_id: str):
                    'someone will get two matches.\n' \
                    'Please post any issues to https://github.com/B0yc3y/doughnut/issues'
     for match in matches:
-        user1_id = match['user1']['id']
-        user2_id = match['user2']['id']
+        user1_id: str = match['user1']['id']
+        user2_id: str = match['user2']['id']
         message += f'\n<@{user1_id}> and <@{user2_id}>'
 
     message += f"\nThat's {len(matches)} donuts this time around!"
