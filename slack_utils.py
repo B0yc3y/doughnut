@@ -10,7 +10,7 @@ from slack_sdk.web import SlackResponse
 SLACK_USER = '@doughnut-bot'
 
 
-def get_user_list(channel_id: str, session: WebClient, summary_only: bool) -> List[Dict]:
+def get_user_list(channel_id: str, session: WebClient, summary_only: bool) -> List[Dict[str, str]]:
     """
     Fetch basic details for all active, non-bot users in this channel
     :param channel_id: Slack channel unique ID
@@ -18,7 +18,7 @@ def get_user_list(channel_id: str, session: WebClient, summary_only: bool) -> Li
     :param summary_only: return only a summary of user data instead of all details
     :return: A list with an {id, name, real_name, timezone} entry for each active, non-bot user in this channel
     """
-    users: List[Dict] = get_channel_users(
+    users: List[Dict[str, str]] = get_channel_users(
         channel_id=channel_id,
         session=session,
         active_users_only=True
@@ -40,7 +40,7 @@ def get_user_list(channel_id: str, session: WebClient, summary_only: bool) -> Li
     return users
 
 
-def get_user_wrapper(user, session):
+def get_user_wrapper(user: str, session: WebClient) -> SlackResponse:
     return session.users_info(user=user, include_locale=True)
 
 
@@ -80,15 +80,15 @@ def is_user_active(user: Dict) -> bool:
 def create_match_dms(matches: List[Dict], session: WebClient):
     with ThreadPoolExecutor() as executor:
         for match in matches:
-            user1_id = match['user1']['id']
-            user2_id = match['user2']['id']
+            user1_id: str = match['user1']['id']
+            user2_id: str = match['user2']['id']
             conversation_id_future = executor.submit(get_match_conversation_id, [user1_id, user2_id], session)
             executor.submit(create_match_dm, conversation_id_future.result(), user1_id, user2_id, session)
             match["conv_id"] = conversation_id_future.result()
 
 
 def get_match_conversation_id(user_ids: List[str], session: WebClient) -> str:
-    response = session.conversations_open(users=user_ids, return_im=True)
+    response: SlackResponse = session.conversations_open(users=user_ids, return_im=True)
     return response['channel']['id']
 
 
@@ -100,9 +100,9 @@ def direct_message_match(
         messages: [str],
         session: WebClient
 ) -> SlackResponse:
-    user1_id = user_id_lookup[user1_name]
-    user2_id = user_id_lookup[user2_name]
-    conv_id = get_match_conversation_id([user1_id, user2_id], session)
+    user1_id: str = user_id_lookup[user1_name]
+    user2_id: str = user_id_lookup[user2_name]
+    conv_id: str = get_match_conversation_id([user1_id, user2_id], session)
 
     return session.chat_postMessage(
         channel=conv_id,
@@ -146,7 +146,7 @@ def create_match_dm(conv_id: str, user1_id: str, user2_id: str, session: WebClie
     return conv_id
 
 
-def post_matches(session: WebClient, matches: List[dict], my_channel_id: str) -> SlackResponse:
+def post_matches(session: WebClient, matches: List[Dict], my_channel_id: str) -> SlackResponse:
     """
     Creates a new DM for each pair of users to introduce them,
     and also posts a list of all pairings to the channel
@@ -156,8 +156,8 @@ def post_matches(session: WebClient, matches: List[dict], my_channel_id: str) ->
 
     match_message: str = "The matches for this round:"
     for match in matches:
-        user1_id = match['user1']['id']
-        user2_id = match['user2']['id']
+        user1_id: str = match['user1']['id']
+        user2_id: str = match['user2']['id']
         match_message += f'\n<@{user1_id}> and <@{user2_id}>'
 
     blocks: List[Block] = Block.parse_all([

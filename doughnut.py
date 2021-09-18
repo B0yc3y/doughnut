@@ -1,6 +1,5 @@
 import csv
 import random
-import sys
 from concurrent.futures import ThreadPoolExecutor
 
 from slack_sdk.web import SlackResponse
@@ -48,50 +47,59 @@ def main():
     for channel in channels:
         channel_name, channel_id = channel.split(":")
         channel_history_file: str = get_history_file_path(channel_id, channel_name, HISTORY_DIR)
-        channel_history: List[dict] = parse_history_file(channel_history_file)
+        channel_history: List[Dict[str, str]] = parse_history_file(channel_history_file)
         last_run_date: date = get_last_run_date(channel_history)
         days_since_last_run: int = abs(date.today() - last_run_date).days
 
-        print(f"Days since last run: {days_since_last_run}")
+        print(f"Days since last run in {channel_name}: {days_since_last_run}")
 
-        # if it's been less than the minimum number of days needed to do more work exit.
+        # if it's been less than the minimum number of days needed to do more work, skip this channel.
         if days_since_last_run < PROMPT_DAYS:
             print(f"It has only been {days_since_last_run} days since last run.")
-            print("Nothing to do. Goodbye!")
-            sys.exit(1)
+            print(f"Nothing to do for {channel}")
+            continue
 
-        print(f"Fetching users in channel: {channel_id}")
-        channel_users = su.get_user_list(
+        print(f"Fetching users in channel: {channel}")
+        channel_users: List[Dict[str, str]]  = su.get_user_list(
             channel_id=channel_id,
             session=SESSION,
             summary_only=True
         )
+        if len(channel_users) <= 1:
+            print(f"Not enough users in the {channel_name} channel, skipping")
+            continue
+
         print(f"Successfully found: {len(channel_users)} users")
 
         # if it's been more than enough days, run more matches.
         if days_since_last_run >= DAYS_BETWEEN_RUNS:
-            matches = execute_channel_matches(channel_id, channel_users, channel_history, POST_MATCHES, SESSION)
+            matches: List[Dict[str, str]] = execute_channel_matches(channel_id, channel_users, channel_history, POST_MATCHES, SESSION)
+            if len(matches) == 0:
+                print(f"No matches found for users in the {channel_name} channel, skipping")
+                continue
             print("Updating history with new matches.")
             channel_history += matches
             write_history(channel_history, channel_history_file)
 
         # if it's been more than match days/2, prompt people to check if they've made a time.
         else:
-            user_id_lookup = {u['name']: u['id'] for u in channel_users}
-            users_prompted = execute_channel_match_prompts(channel_id, user_id_lookup, channel_history, POST_MATCHES, SESSION)
-            if users_prompted > 0:
-                print("Updating history with new prompts.")
-                write_history(channel_history, channel_history_file)
+            user_id_lookup: Dict[str, str] = {u['name']: u['id'] for u in channel_users}
+            users_prompted: int = execute_channel_match_prompts(channel_id, user_id_lookup, channel_history, POST_MATCHES, SESSION)
+            if users_prompted == 0:
+                print(f"No users need prompting in the {channel_name} channel, skipping")
+                continue
+            print("Updating history with new prompts.")
+            write_history(channel_history, channel_history_file)
 
-    # push updated history to s3 if backed by s3
-    if S3_BUCKET_NAME is not None and POST_MATCHES:
-        push_history_to_s3(S3_BUCKET_NAME, channels, HISTORY_DIR)
+        # push updated history to s3 if backed by s3
+        if S3_BUCKET_NAME is not None and POST_MATCHES:
+            push_history_to_s3(S3_BUCKET_NAME, channel, HISTORY_DIR)
 
     print("Done!")
     print("Thanks for using doughnut! Goodbye!")
 
 
-def get_last_run_date(channel_history: List[dict]) -> date:
+def get_last_run_date(channel_history: List[Dict[str, str]]) -> date:
     if len(channel_history) == 0:
         return date.min
     else:
@@ -99,7 +107,7 @@ def get_last_run_date(channel_history: List[dict]) -> date:
         return date.fromisoformat(channel_history[-1]['match_date'])
 
 
-def parse_history_file(history_file: str) -> List[dict]:
+def parse_history_file(history_file: str) -> List[Dict[str, str]]:
     """
     Parse a CSV match history file
 
@@ -126,7 +134,7 @@ def parse_history_file(history_file: str) -> List[dict]:
 def execute_channel_match_prompts(
     channel_id: str,
     user_id_lookup: Dict[str, str],
-    match_history: List[dict],
+    match_history: List[Dict[str, str]],
     post_to_slack: bool,
     session: WebClient
 ) -> int:
@@ -136,7 +144,7 @@ def execute_channel_match_prompts(
     :return: count of users prompted
     """
     print(f"Checking for matches to prompt in channel: {channel_id}")
-    matches_to_prompt: List[dict] = []
+    matches_to_prompt: List[Dict[str, str]] = []
     for match in match_history:
         if match['prompted'] != '1':
             days_since_last_run: int = abs(date.today() - date.fromisoformat(match['match_date'])).days
@@ -178,7 +186,7 @@ def send_prompt_message(user_id_lookup: Dict[str, str], match: Dict[str, str], s
         print(f"Unable to post message dm with: {user1_name} & {user2_name}")
 
 
-def execute_channel_matches(channel_id: str, channel_users: List[dict], history: List[dict], post_to_slack: bool, session: WebClient) -> List[dict]:
+def execute_channel_matches(channel_id: str, channel_users: List[Dict[str, str]], history: List[Dict], post_to_slack: bool, session: WebClient) -> List[Dict[str, str]]:
     """
     Gather user information, calculate best matches, and post those matches to Slack.
     :param channel_id: Slack channel
@@ -189,22 +197,22 @@ def execute_channel_matches(channel_id: str, channel_users: List[dict], history:
     :return: a list of matches made this time
     """
     print("Generating optimal matches, this could take some time...")
-    matches = create_matches(channel_users, history)
+    matches: List[Dict] = create_matches(channel_users, history)
     print(f"The following matches have been found: {matches}")
     if post_to_slack:
         post_matches_to_slack(channel_id, matches, session)
 
-    today = dt.strftime(dt.now(), "%Y-%m-%d")
-    new_match_history = [{
+    today: str = dt.strftime(dt.now(), "%Y-%m-%d")
+    new_match_history: List[Dict[str, str]] = [{
         'name1': m['user1']['name'],
         'name2': m['user2']['name'],
         'match_date': today,
-        'prompted': 0
+        'prompted': '0'
     } for m in matches]
     return new_match_history
 
 
-def create_matches(channel_users: List[dict], history: List[dict]) -> List[dict]:
+def create_matches(channel_users: List[Dict], history: List[Dict[str, str]]) -> List[Dict]:
     """
     Choose which users should be paired together this time
     :param channel_users: A list of active users in this channel
@@ -222,8 +230,8 @@ def create_matches(channel_users: List[dict], history: List[dict]) -> List[dict]
     """
     match_counts: Dict[str, Dict[str, List[str]]] = dict()
     for match in history:
-        person_a = match['name1']
-        person_b = match['name2']
+        person_a: str = match['name1']
+        person_b: str = match['name2']
 
         record_match(person_a, person_b, match['match_date'], match_counts)
         record_match(person_b, person_a, match['match_date'], match_counts)
@@ -232,14 +240,14 @@ def create_matches(channel_users: List[dict], history: List[dict]) -> List[dict]
     Build a list of all potential pairings with a score for each:
     {name1, name2, match_strength}
     """
-    possible_matches = []
+    possible_matches: List[Dict] = []
     for i in range(len(channel_users)):
-        user1 = channel_users[i]
+        user1: Dict = channel_users[i]
         user1['matched'] = False
         for j in range(i + 1, len(channel_users)):
-            user2 = channel_users[j]
+            user2: Dict = channel_users[j]
 
-            match_strength = calculate_match_strength(user1, user2, match_counts)
+            match_strength: int = calculate_match_strength(user1, user2, match_counts)
             possible_matches.append({
                 'user1': user1,
                 'user2': user2,
@@ -249,7 +257,7 @@ def create_matches(channel_users: List[dict], history: List[dict]) -> List[dict]
     """
     Iterate through potential matches from best to worst, marking users as paired off as we go
     """
-    chosen_matches = []
+    chosen_matches: List[Dict] = []
     for potential in sorted(possible_matches, key=lambda v: v['match_strength'], reverse=True):
         if not (potential['user1']['matched'] or potential['user2']['matched']):
             chosen_matches.append(potential)
@@ -292,12 +300,12 @@ def record_match(host: str, guest: str, meet_date: str, matches: Dict[str, Dict[
         matches[host][guest].append(meet_date)
 
 
-def calculate_match_strength(user1: Dict[str, str], user2: Dict[str, str], past_matches: Dict[str, Dict[str, List[str]]]) -> int:
+def calculate_match_strength(user1: Dict, user2: Dict, past_matches: Dict[str, Dict[str, List[str]]]) -> int:
     """
     Provides a weighting/metric for how "good" a potential pairing is.
     """
-    name1 = user1['name']
-    name2 = user2['name']
+    name1: str = user1['name']
+    name2: str = user2['name']
     if name1 not in past_matches or name2 not in past_matches[name1]:
         times_paired = 0
     else:
@@ -311,21 +319,21 @@ def calculate_match_strength(user1: Dict[str, str], user2: Dict[str, str], past_
     return 100*is_diff_tz - 200*times_paired + random.randint(0, 50)
 
 
-def get_history_file_path(channel_id, channel_name, history_dir):
+def get_history_file_path(channel_id: str, channel_name: str, history_dir: str):
     channel_history_file = f"{channel_name}_{channel_id}_history.csv"
     if history_dir is not None:
         channel_history_file = f"{history_dir}{channel_history_file}"
     return channel_history_file
 
 
-def write_history(history: List[dict], filepath: str):
-    with open(filepath, 'w+', newline='') as csv_file:
+def write_history(history: List[Dict[str, str]], filepath: str):
+    with open(filepath, 'w', newline='') as csv_file:
         writer = csv.DictWriter(csv_file, fieldnames=CSV_FIELD_NAMES)
         writer.writeheader()
         writer.writerows(history)
 
 
-def post_matches_to_slack(channel_id, matches, session):
+def post_matches_to_slack(channel_id: str, matches: List[Dict], session: WebClient):
     print(f"Posting matches to channel: {channel_id}.")
     print("Setting up DM channels for matched pairs.")
     su.post_matches(session, matches, channel_id)
@@ -340,21 +348,18 @@ def pull_history_from_s3(bucket_name: str, out_dir: str = "/tmp/"):
         bucket.download_file(s3_object.key, f"{out_dir}{filename}")
 
 
-def push_history_to_s3(bucket_name: str, channels: List[str], history_dir: str = "/tmp/"):
-    for channel in channels:
-        channel_name, channel_id = channel.split(":")
-        local_file: str = get_history_file_path(channel_id, channel_name, history_dir)
-        s3_file_name = local_file.split("/")[-1]
-        file_uploaded: bool = upload_file(local_file, bucket_name, s3_file_name)
-        if file_uploaded:
-            print(f"Uploaded history for channel: {channel} to s3://{bucket_name}/{s3_file_name}")
-        else:
-            print(f"Unable to upload history for channel: {channel}")
-
-    print(f"Finished updating history")
+def push_history_to_s3(bucket_name: str, channel: str, history_dir: str = "/tmp/"):
+    channel_name, channel_id = channel.split(":")
+    local_file: str = get_history_file_path(channel_id, channel_name, history_dir)
+    s3_file_name: str = local_file.split("/")[-1]
+    file_uploaded: bool = upload_file(local_file, bucket_name, s3_file_name)
+    if file_uploaded:
+        print(f"Uploaded history for channel: {channel} to s3://{bucket_name}/{s3_file_name}")
+    else:
+        print(f"Unable to upload history for channel: {channel}")
 
 
-def upload_file(file_name, bucket, object_name=None):
+def upload_file(file_name: str, bucket: str, object_name: str = None):
     """Upload a file to an S3 bucket
 
     :param file_name: File to upload
