@@ -3,6 +3,8 @@ import random
 import sys
 from concurrent.futures import ThreadPoolExecutor
 
+from slack_sdk.web import SlackResponse
+
 import slack_utils as su
 import os
 import boto3
@@ -59,7 +61,11 @@ def main():
             sys.exit(1)
 
         print(f"Fetching users in channel: {channel_id}")
-        channel_users = su.get_user_list(SESSION, channel_id)
+        channel_users = su.get_user_list(
+            channel_id=channel_id,
+            session=SESSION,
+            summary_only=True
+        )
         print(f"Successfully found: {len(channel_users)} users")
 
         # if it's been more than enough days, run more matches.
@@ -155,16 +161,21 @@ def prompt_match_list(user_id_lookup: Dict[str, str], matches_to_prompt: List[Di
 
 
 def send_prompt_message(user_id_lookup: Dict[str, str], match: Dict[str, str], session: WebClient):
-    message = "It's the halfway point, just checking in to ensure the session has been scheduled or completed :)"
+    preview_message: str = ":doughnut: Half way! :doughnut:"
+    message: str = "It's the halfway point, just checking in to ensure the session has been scheduled or "
     user1_name: str = match['name1']
     user2_name: str = match['name2']
-    su.direct_message_match(
+    response: SlackResponse = su.direct_message_match(
         user1_name=user1_name,
         user2_name=user2_name,
         user_id_lookup=user_id_lookup,
-        message=message,
+        preview_message=preview_message,
+        messages=[message],
         session=session
     )
+
+    if not response.status_code == 200:
+        print(f"Unable to post message dm with: {user1_name} & {user2_name}")
 
 
 def execute_channel_matches(channel_id: str, channel_users: List[dict], history: List[dict], post_to_slack: bool, session: WebClient) -> List[dict]:
@@ -295,7 +306,8 @@ def calculate_match_strength(user1: Dict[str, str], user2: Dict[str, str], past_
     is_diff_tz = (user1['tz'] != user2['tz'])
 
     # Users in different timezones prioritised, but won't match the same person again until you have met everyone else
-    # some randomness added for the case when multiple potential matches share a match score so we don't get some unintended default alphabetic order or alike.
+    # some randomness added for the case when multiple potential matches share a match score so we don't get some
+    # unintended default alphabetic order or alike.
     return 100*is_diff_tz - 200*times_paired + random.randint(0, 50)
 
 
@@ -307,7 +319,7 @@ def get_history_file_path(channel_id, channel_name, history_dir):
 
 
 def write_history(history: List[dict], filepath: str):
-    with open(filepath, 'w', newline='') as csv_file:
+    with open(filepath, 'w+', newline='') as csv_file:
         writer = csv.DictWriter(csv_file, fieldnames=CSV_FIELD_NAMES)
         writer.writeheader()
         writer.writerows(history)
