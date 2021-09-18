@@ -35,6 +35,5 @@ python3 doughnut.py
 
 ## Improvements
  - Rewrite Slack integration
-   - Pulling User Data
-   - Creating Chats/Messages
+   - save conversation_ids
  - Opt out of matching with certain individuals
