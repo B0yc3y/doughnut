@@ -77,14 +77,16 @@ def is_user_active(user: Dict) -> bool:
             and 'doughnut' not in user['name'])
 
 
-def create_match_dms(matches: List[Dict], session: WebClient):
+def create_match_dms(matches: List[Dict], session: WebClient) -> List[Dict]:
     with ThreadPoolExecutor() as executor:
         for match in matches:
             user1_id: str = match['user1']['id']
             user2_id: str = match['user2']['id']
             conversation_id_future = executor.submit(get_match_conversation_id, [user1_id, user2_id], session)
             executor.submit(create_match_dm, conversation_id_future.result(), user1_id, user2_id, session)
-            match["conv_id"] = conversation_id_future.result()
+            match["conversation_id"] = conversation_id_future.result()
+
+    return matches
 
 
 def get_match_conversation_id(user_ids: List[str], session: WebClient) -> str:
@@ -93,19 +95,13 @@ def get_match_conversation_id(user_ids: List[str], session: WebClient) -> str:
 
 
 def direct_message_match(
-        user1_name: str,
-        user2_name: str,
-        user_id_lookup: Dict[str, str],
+        conversation_id: str,
         preview_message: str,
         messages: [str],
         session: WebClient
 ) -> SlackResponse:
-    user1_id: str = user_id_lookup[user1_name]
-    user2_id: str = user_id_lookup[user2_name]
-    conv_id: str = get_match_conversation_id([user1_id, user2_id], session)
-
     return session.chat_postMessage(
-        channel=conv_id,
+        channel=conversation_id,
         text=preview_message,
         blocks=Block.parse_all([
             {
@@ -115,7 +111,7 @@ def direct_message_match(
                     "text": message
                 }
             } for message in messages
-        ]),
+        ])
     )
 
 
@@ -151,7 +147,7 @@ def post_matches(session: WebClient, matches: List[Dict], my_channel_id: str) ->
     Creates a new DM for each pair of users to introduce them,
     and also posts a list of all pairings to the channel
     """
-    create_match_dms(matches, session)
+
     preview_message: str = ":doughnut: Matches are in! :doughnut:"
 
     match_message: str = "The matches for this round:"

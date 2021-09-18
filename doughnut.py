@@ -17,7 +17,7 @@ from botocore.exceptions import ClientError
 HISTORY_DIR = "./doughnut_history/"
 DAYS_BETWEEN_RUNS = 14
 PROMPT_DAYS = DAYS_BETWEEN_RUNS / 2
-CSV_FIELD_NAMES = ['name1', 'name2', 'match_date', 'prompted']
+CSV_FIELD_NAMES = ['name1', 'name2', 'conversation_id', 'match_date', 'prompted']
 
 CHANNELS = os.environ.get("SLACK_CHANNELS", "donuts:C015239UFM2")
 POST_MATCHES = os.environ.get("POST_MATCHES", False)
@@ -83,8 +83,15 @@ def main():
 
         # if it's been more than match days/2, prompt people to check if they've made a time.
         else:
-            user_id_lookup: Dict[str, str] = {u['name']: u['id'] for u in channel_users}
-            users_prompted: int = execute_channel_match_prompts(channel_id, user_id_lookup, channel_history, POST_MATCHES, SESSION)
+            # If we don't have conversation ids saved, fetch them all.
+            if len(channel_history) > 0 and "conversation_id" not in channel_history[-1]:
+                user_id_lookup: Dict[str, str] = {u['name']: u['id'] for u in channel_users}
+                for match in channel_history:
+                    user1_id: str = user_id_lookup[match['name1']]
+                    user2_id: str = user_id_lookup[match['name2']]
+                    match["conversation_id"] = su.get_match_conversation_id([user1_id, user2_id], SESSION)
+
+            users_prompted: int = execute_channel_match_prompts(channel_id, channel_history, POST_MATCHES, SESSION)
             if users_prompted == 0:
                 print(f"No users need prompting in the {channel_name} channel, skipping")
                 continue
@@ -111,7 +118,18 @@ def parse_history_file(history_file: str) -> List[Dict[str, str]]:
     """
     Parse a CSV match history file
 
-    Example CSV:
+    Example CSV
+    name1, name2, conversation_id, match_date, prompted
+    alice, bob, A123456789, 2021-08-31, 1
+    bob, charlie,, B123456789, 2021-09-14, 0
+
+    Example parsed output:
+    [
+        {"name1": "alice", "name2": "bob", "conversation_id": "A123456789", "match_date": "2021-08-31", "prompted": "1",
+        {"name1": "bob", "name2": "charlie", "conversation_id": "B123456789", "match_date": "2021-09-14", "prompted": "0"
+    ]
+
+    Example CSV (legacy):
     name1, name2, match_date, prompted
     alice, bob, 2021-08-31, 1
     bob, charlie, 2021-09-14, 0
@@ -133,7 +151,6 @@ def parse_history_file(history_file: str) -> List[Dict[str, str]]:
 
 def execute_channel_match_prompts(
     channel_id: str,
-    user_id_lookup: Dict[str, str],
     match_history: List[Dict[str, str]],
     post_to_slack: bool,
     session: WebClient
@@ -155,28 +172,28 @@ def execute_channel_match_prompts(
     if len(matches_to_prompt) > 0:
         print(f"Prompting {len(matches_to_prompt)} matches")
         if post_to_slack:
-            prompt_match_list(user_id_lookup, matches_to_prompt, session)
+            prompt_match_list(matches_to_prompt, session)
     else:
         print("No matches require prompting.")
 
     return len(matches_to_prompt)
 
 
-def prompt_match_list(user_id_lookup: Dict[str, str], matches_to_prompt: List[Dict[str, str]], session: WebClient):
+def prompt_match_list(matches_to_prompt: List[Dict[str, str]],  session: WebClient):
     with ThreadPoolExecutor() as executor:
         for match in matches_to_prompt:
-            executor.submit(send_prompt_message, user_id_lookup, match, session)
+            executor.submit(send_prompt_message, match, session)
 
 
-def send_prompt_message(user_id_lookup: Dict[str, str], match: Dict[str, str], session: WebClient):
+def send_prompt_message(match: Dict[str, str], session: WebClient):
     preview_message: str = ":doughnut: Half way! :doughnut:"
-    message: str = "It's the halfway point, just checking in to ensure the session has been scheduled or "
+    message: str = "It's the halfway point, just checking in to ensure the session has been scheduled or completed"
     user1_name: str = match['name1']
     user2_name: str = match['name2']
+    conversation_id: str = match['conversation_id']
+
     response: SlackResponse = su.direct_message_match(
-        user1_name=user1_name,
-        user2_name=user2_name,
-        user_id_lookup=user_id_lookup,
+        conversation_id=conversation_id,
         preview_message=preview_message,
         messages=[message],
         session=session
@@ -198,17 +215,20 @@ def execute_channel_matches(channel_id: str, channel_users: List[Dict[str, str]]
     """
     print("Generating optimal matches, this could take some time...")
     matches: List[Dict] = create_matches(channel_users, history)
+
     print(f"The following matches have been found: {matches}")
     if post_to_slack:
-        post_matches_to_slack(channel_id, matches, session)
+        matches = post_matches_to_slack(channel_id, matches, session)
 
     today: str = dt.strftime(dt.now(), "%Y-%m-%d")
     new_match_history: List[Dict[str, str]] = [{
-        'name1': m['user1']['name'],
-        'name2': m['user2']['name'],
+        'name1': match['user1']['name'],
+        'name2': match['user2']['name'],
+        'conversation_id': match["conversation_id"],
         'match_date': today,
         'prompted': '0'
-    } for m in matches]
+    } for match in matches]
+
     return new_match_history
 
 
@@ -333,10 +353,12 @@ def write_history(history: List[Dict[str, str]], filepath: str):
         writer.writerows(history)
 
 
-def post_matches_to_slack(channel_id: str, matches: List[Dict], session: WebClient):
+def post_matches_to_slack(channel_id: str, matches: List[Dict], session: WebClient) -> List[Dict]:
     print(f"Posting matches to channel: {channel_id}.")
     print("Setting up DM channels for matched pairs.")
+    matches = su.create_match_dms(matches, session)
     su.post_matches(session, matches, channel_id)
+    return matches
 
 
 def pull_history_from_s3(bucket_name: str, out_dir: str = "/tmp/"):
