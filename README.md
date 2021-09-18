@@ -34,6 +34,4 @@ python3 doughnut.py
 ```
 
 ## Improvements
- - Rewrite Slack integration
-   - save conversation_ids
  - Opt out of matching with certain individuals
