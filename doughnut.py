@@ -126,8 +126,8 @@ def parse_history_file(history_file: str) -> List[Dict[str, str]]:
 
     Example parsed output:
     [
-        {"name1": "alice", "name2": "bob", "conversation_id": "A123456789", "match_date": "2021-08-31", "prompted": "1"},
-        {"name1": "bob", "name2": "charlie", "conversation_id": "B123456789", "match_date": "2021-09-14", "prompted": "0"}
+        {"name1": "alice", "name2": "bob", "conversation_id": "A1234567", "match_date": "2021-08-31", "prompted": "1"},
+        {"name1": "bob", "name2": "charlie", "conversation_id": "B1234567", "match_date": "2021-09-14", "prompted": "0"}
     ]
 
     Example CSV (legacy):
@@ -199,9 +199,13 @@ def send_prompt_message(match: Dict[str, str], session: WebClient) -> SlackRespo
     )
 
 
-
-
-def execute_channel_matches(channel_id: str, channel_users: List[Dict[str, str]], history: List[Dict], post_to_slack: bool, session: WebClient) -> List[Dict[str, str]]:
+def execute_channel_matches(
+        channel_id: str,
+        channel_users: List[Dict[str, str]],
+        history: List[Dict],
+        post_to_slack: bool,
+        session: WebClient
+) -> List[Dict[str, str]]:
     """
     Gather user information, calculate best matches, and post those matches to Slack.
     :param channel_id: Slack channel
