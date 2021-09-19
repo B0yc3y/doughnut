@@ -40,10 +40,6 @@ def get_user_list(channel_id: str, session: WebClient, summary_only: bool) -> Li
     return users
 
 
-def get_user_wrapper(user: str, session: WebClient) -> SlackResponse:
-    return session.users_info(user=user, include_locale=True)
-
-
 def get_channel_users(channel_id: str, session: WebClient, active_users_only: bool) -> List[Dict]:
     try:
         # Get all ids of users in the channel
