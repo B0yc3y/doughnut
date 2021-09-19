@@ -10,18 +10,24 @@ from slack_sdk.web import SlackResponse
 SLACK_USER = '@doughnut-bot'
 
 
-def get_user_list(channel_id: str, session: WebClient, summary_only: bool) -> List[Dict[str, str]]:
+def get_user_list(
+        channel_id: str,
+        session: WebClient,
+        summary_only: bool,
+        limit: int,
+) -> List[Dict[str, str]]:
     """
     Fetch basic details for all active, non-bot users in this channel
     :param channel_id: Slack channel unique ID
     :param session: a current Slack API session
     :param summary_only: return only a summary of user data instead of all details
+    :param limit: The limit of the number of users to pull out of the slack team
     :return: A list with an {id, name, real_name, timezone} entry for each active, non-bot user in this channel
     """
     users: List[Dict[str, str]] = get_channel_users(
         channel_id=channel_id,
         session=session,
-        active_users_only=True
+        limit=limit
     )
 
     if summary_only:
@@ -43,7 +49,10 @@ def get_user_list(channel_id: str, session: WebClient, summary_only: bool) -> Li
 def get_channel_users(channel_id: str, session: WebClient, active_users_only: bool) -> List[Dict]:
     try:
         # Get all ids of users in the channel
-        channel_users_response: SlackResponse = session.conversations_members(channel=channel_id)
+        channel_users_response: SlackResponse = session.conversations_members(
+            channel=channel_id,
+            limit=limit
+        )
 
         # Get user details for all users in the slack team
         team_users_response: SlackResponse = session.users_list()
@@ -56,9 +65,7 @@ def get_channel_users(channel_id: str, session: WebClient, active_users_only: bo
     slack_team_users: List[Dict] = team_users_response['members']
 
     # todo add filtering here for match aversion/temporarily excluded users.
-    # filter out inactive users.
-    if active_users_only:
-        slack_team_users = [user for user in slack_team_users if is_user_active(user)]
+    slack_team_users = [user for user in slack_team_users if is_user_active(user)]
 
     # Return all the user details for users in the channel
     return [user for user in slack_team_users if user["id"] in channel_user_ids]
