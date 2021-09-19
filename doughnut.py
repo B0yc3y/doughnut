@@ -60,7 +60,7 @@ def main():
             continue
 
         print(f"Fetching users in channel: {channel}")
-        channel_users: List[Dict[str, str]]  = su.get_user_list(
+        channel_users: List[Dict[str, str]] = su.get_user_list(
             channel_id=channel_id,
             session=SESSION,
             summary_only=True
