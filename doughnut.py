@@ -189,21 +189,16 @@ def prompt_match_list(matches_to_prompt: List[Dict[str, str]],  session: WebClie
 def send_prompt_message(match: Dict[str, str], session: WebClient) -> SlackResponse:
     preview_message: str = ":doughnut: Half way! :doughnut:"
     message: str = "It's the halfway point, just checking in to ensure the session has been scheduled or completed"
-    user1_name: str = match['name1']
-    user2_name: str = match['name2']
     conversation_id: str = match['conversation_id']
 
-    response: SlackResponse = su.direct_message_match(
+    return su.direct_message_match(
         conversation_id=conversation_id,
         preview_message=preview_message,
         messages=[message],
         session=session
     )
 
-    if not response.status_code == 200:
-        print(f"Unable to post message dm with {user1_name} & {user2_name}: \n {response.data}")
 
-    return response
 
 
 def execute_channel_matches(channel_id: str, channel_users: List[Dict[str, str]], history: List[Dict], post_to_slack: bool, session: WebClient) -> List[Dict[str, str]]:
