@@ -99,46 +99,53 @@ def direct_message_match(
         messages: [str],
         session: WebClient
 ) -> SlackResponse:
-    return session.chat_postMessage(
-        channel=conversation_id,
-        text=preview_message,
-        blocks=Block.parse_all([
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": message
-                }
-            } for message in messages
-        ])
-    )
+    try:
+        return session.chat_postMessage(
+            channel=conversation_id,
+            text=preview_message,
+            blocks=Block.parse_all([
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": message
+                    }
+                } for message in messages
+            ])
+        )
+    except SlackApiError as e:
+        print(f"Error posting message to Slack API: {e}")
+        print(f"Unable to message conversation: {conversation_id}")
+        raise SlackApiError
 
 
-def create_match_dm(conv_id: str, user1_id: str, user2_id: str, session: WebClient) -> str:
+def create_match_dm(conv_id: str, user1_id: str, user2_id: str, session: WebClient) -> SlackResponse:
     ids: List[str] = [user1_id, user2_id]
     organiser_id: str = ids[random.randint(0, 1)]
 
-    response: SlackResponse = session.chat_postMessage(
-        channel=conv_id,
-        text=f':doughnut: doughnut Time! :doughnut: ',
-        blocks=Block.parse_all(
-            [{
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": f'Hello <@{user1_id}> and <@{user2_id}>!'
-                            f' Welcome to a new round of doughnuts!'
-                            f' Please use this DM channel to set up time to connect!'
-                            f'<@{organiser_id}> you have been selected to organise the meeting.'
-                }
-            }]
-        ),
-    )
+    try:
+        # Get all ids of users in the channel
+        return session.chat_postMessage(
+            channel=conv_id,
+            text=f':doughnut: doughnut Time! :doughnut: ',
+            blocks=Block.parse_all(
+                [{
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": f'Hello <@{user1_id}> and <@{user2_id}>!'
+                                f' Welcome to a new round of doughnuts!'
+                                f' Please use this DM channel to set up time to connect!'
+                                f'<@{organiser_id}> you have been selected to organise the meeting.'
+                    }
+                }]
+            ),
+        )
 
-    if not response.status_code == 200:
+    except SlackApiError as e:
+        print(f"Error posting message to Slack API: {e}")
         print(f"Unable to message {user1_id} & {user2_id}")
-
-    return conv_id
+        raise SlackApiError
 
 
 def post_matches(session: WebClient, matches: List[Dict], my_channel_id: str) -> SlackResponse:
@@ -197,9 +204,14 @@ def post_matches(session: WebClient, matches: List[Dict], my_channel_id: str) ->
         }
     ])
 
-    # Send pairings to the ds_doughnut channel
-    return session.chat_postMessage(
-        channel=my_channel_id,
-        text=preview_message,
-        blocks=blocks
-    )
+    try:
+        # Send pairings to the ds_doughnut channel
+        return session.chat_postMessage(
+            channel=my_channel_id,
+            text=preview_message,
+            blocks=blocks
+        )
+
+    except SlackApiError as e:
+        print(f"Error posting channelmessage to Slack API: {e}")
+        raise SlackApiError
