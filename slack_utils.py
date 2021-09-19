@@ -43,6 +43,13 @@ def get_user_list(
 
 
 def get_channel_users(channel_id: str, session: WebClient, limit: int) -> List[Dict]:
+    """
+    Fetch all details for users in a given channel
+    :param channel_id: the channel we are looking for users in
+    :param session: the slack client session
+    :param limit: the maximum number of users to pull
+    :return: a list of user details as a dict
+    """
     try:
         # Get all ids of users in the channel
         channel_users_response: SlackResponse = session.conversations_members(
@@ -53,6 +60,7 @@ def get_channel_users(channel_id: str, session: WebClient, limit: int) -> List[D
         # Get user details for all users in the slack team
         team_users_response: SlackResponse = session.users_list()
 
+
     except SlackApiError as e:
         print(f"Error fetching data from Slack API: {e}")
         raise SlackApiError
@@ -61,13 +69,18 @@ def get_channel_users(channel_id: str, session: WebClient, limit: int) -> List[D
     slack_team_users: List[Dict] = team_users_response['members']
 
     # todo add filtering here for match aversion/temporarily excluded users.
-    slack_team_users = [user for user in slack_team_users if is_user_active(user)]
+    slack_team_users = [user for user in slack_team_users if is_active_user(user)]
 
     # Return all the user details for users in the channel
     return [user for user in slack_team_users if user["id"] in channel_user_ids]
 
 
-def is_user_active(user: Dict) -> bool:
+def is_active_user(user: Dict) -> bool:
+    """
+    Returns true if the user is active and not the bot
+    :param user: the user to check
+    :return: boolean if user is active
+    """
     return (user is not None
             and not user['deleted']
             and not user['is_restricted']
@@ -77,18 +90,30 @@ def is_user_active(user: Dict) -> bool:
 
 
 def create_match_dms(matches: List[Dict], session: WebClient) -> List[Dict]:
+    """
+    Create many dms, one for each match, this is done using multithreading
+    :param matches: the list of matches to message
+    :param session: The slack client session.
+    :return:
+    """
     with ThreadPoolExecutor() as executor:
         for match in matches:
             user1_id: str = match['user1']['id']
             user2_id: str = match['user2']['id']
             conversation_id_future = executor.submit(get_match_conversation_id, [user1_id, user2_id], session)
-            executor.submit(create_match_dm, conversation_id_future.result(), user1_id, user2_id, session)
+            executor.submit(match_opening_message, conversation_id_future.result(), user1_id, user2_id, session)
             match["conversation_id"] = conversation_id_future.result()
 
     return matches
 
 
 def get_match_conversation_id(user_ids: List[str], session: WebClient) -> str:
+    """
+    Get the slack conversation id for this match's DM
+    :param user_ids: the users int he conversation
+    :param session: the slack client session
+    :return: the string id of the conversation
+    """
     response: SlackResponse = session.conversations_open(users=user_ids, return_im=True)
     return response['channel']['id']
 
@@ -99,6 +124,14 @@ def direct_message_match(
         messages: [str],
         session: WebClient
 ) -> SlackResponse:
+    """
+    Send a message to the provided conversation
+    :param conversation_id: the id of the message to send
+    :param preview_message: the notrification display message
+    :param messages: the content of the message(s) to send
+    :param session: the slack client session
+    :return:
+    """
     try:
         return session.chat_postMessage(
             channel=conversation_id,
@@ -119,14 +152,22 @@ def direct_message_match(
         raise SlackApiError
 
 
-def create_match_dm(conv_id: str, user1_id: str, user2_id: str, session: WebClient) -> SlackResponse:
+def match_opening_message(conversation_id: str, user1_id: str, user2_id: str, session: WebClient) -> SlackResponse:
+    """
+    Send the opening message to the match
+    :param conversation_id: the conversation_id of the match
+    :param user1_id: the userId of user 1 used to tag the user
+    :param user2_id: the userId of user 2 used to tag the user
+    :param session: the slack client session
+    :return: the response from slack
+    """
     ids: List[str] = [user1_id, user2_id]
     organiser_id: str = ids[random.randint(0, 1)]
 
     try:
         # Get all ids of users in the channel
         return session.chat_postMessage(
-            channel=conv_id,
+            channel=conversation_id,
             text=f':doughnut: doughnut Time! :doughnut: ',
             blocks=Block.parse_all(
                 [{
@@ -148,12 +189,14 @@ def create_match_dm(conv_id: str, user1_id: str, user2_id: str, session: WebClie
         raise SlackApiError
 
 
-def post_matches(session: WebClient, matches: List[Dict], my_channel_id: str) -> SlackResponse:
+def post_matches(session: WebClient, matches: List[Dict], channel_id: str) -> SlackResponse:
     """
-    Creates a new DM for each pair of users to introduce them,
-    and also posts a list of all pairings to the channel
+    Posts a list of all pairings to the channel
+    :param session: the slack client session
+    :param matches: the list of matches
+    :param channel_id: the channel to post the matches to
+    :return: the slack api response
     """
-
     preview_message: str = ":doughnut: Matches are in! :doughnut:"
 
     match_message: str = "The matches for this round:"
@@ -207,7 +250,7 @@ def post_matches(session: WebClient, matches: List[Dict], my_channel_id: str) ->
     try:
         # Send pairings to the ds_doughnut channel
         return session.chat_postMessage(
-            channel=my_channel_id,
+            channel=channel_id,
             text=preview_message,
             blocks=blocks
         )
