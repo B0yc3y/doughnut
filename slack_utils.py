@@ -13,7 +13,6 @@ SLACK_USER = '@doughnut-bot'
 def get_user_list(
         channel_id: str,
         session: WebClient,
-        summary_only: bool,
         limit: int,
 ) -> List[Dict[str, str]]:
     """
@@ -30,7 +29,7 @@ def get_user_list(
         limit=limit
     )
 
-    if summary_only:
+    if len(users) > 0:
         # only get the summary fields needed for matching
         users = [{
             'id': user['id'],
@@ -40,13 +39,10 @@ def get_user_list(
             'tzOffset': user['tz_offset']
         } for user in users]
 
-    if len(users) == 0:
-        print(f"No Suitable users found in channel: {channel_id}")
-
     return users
 
 
-def get_channel_users(channel_id: str, session: WebClient, active_users_only: bool) -> List[Dict]:
+def get_channel_users(channel_id: str, session: WebClient, limit: int) -> List[Dict]:
     try:
         # Get all ids of users in the channel
         channel_users_response: SlackResponse = session.conversations_members(

@@ -64,7 +64,6 @@ def main():
         channel_users: List[Dict[str, str]] = su.get_user_list(
             channel_id=channel_id,
             session=SESSION,
-            summary_only=True,
             limit=USER_LIMIT
         )
         if len(channel_users) <= 1:
