@@ -70,7 +70,7 @@ def get_channel_users(channel_id: str, session: WebClient, limit: int) -> List[D
     slack_team_users = [user for user in slack_team_users if is_active_user(user)]
 
     # Return all the user details for users in the channel
-    return [user for user in slack_team_users if user["id"] in channel_user_ids]
+    return [user for user in slack_team_users if user["id"] in set(channel_user_ids)]
 
 
 def is_active_user(user: Dict) -> bool:
