@@ -19,7 +19,6 @@ def get_user_list(
     Fetch basic details for all active, non-bot users in this channel
     :param channel_id: Slack channel unique ID
     :param session: a current Slack API session
-    :param summary_only: return only a summary of user data instead of all details
     :param limit: The limit of the number of users to pull out of the slack team
     :return: A list with an {id, name, real_name, timezone} entry for each active, non-bot user in this channel
     """
@@ -59,7 +58,6 @@ def get_channel_users(channel_id: str, session: WebClient, limit: int) -> List[D
 
         # Get user details for all users in the slack team
         team_users_response: SlackResponse = session.users_list()
-
 
     except SlackApiError as e:
         print(f"Error fetching data from Slack API: {e}")
@@ -127,7 +125,7 @@ def direct_message_match(
     """
     Send a message to the provided conversation
     :param conversation_id: the id of the message to send
-    :param preview_message: the notrification display message
+    :param preview_message: the notification display message
     :param messages: the content of the message(s) to send
     :param session: the slack client session
     :return:
@@ -256,5 +254,5 @@ def post_matches(session: WebClient, matches: List[Dict], channel_id: str) -> Sl
         )
 
     except SlackApiError as e:
-        print(f"Error posting channelmessage to Slack API: {e}")
+        print(f"Error posting channel message to Slack API: {e}")
         raise SlackApiError
