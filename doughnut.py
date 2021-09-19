@@ -125,8 +125,8 @@ def parse_history_file(history_file: str) -> List[Dict[str, str]]:
 
     Example parsed output:
     [
-        {"name1": "alice", "name2": "bob", "conversation_id": "A123456789", "match_date": "2021-08-31", "prompted": "1",
-        {"name1": "bob", "name2": "charlie", "conversation_id": "B123456789", "match_date": "2021-09-14", "prompted": "0"
+        {"name1": "alice", "name2": "bob", "conversation_id": "A123456789", "match_date": "2021-08-31", "prompted": "1"},
+        {"name1": "bob", "name2": "charlie", "conversation_id": "B123456789", "match_date": "2021-09-14", "prompted": "0"}
     ]
 
     Example CSV (legacy):
@@ -136,8 +136,8 @@ def parse_history_file(history_file: str) -> List[Dict[str, str]]:
 
     Example parsed output:
     [
-        {"name1": "alice", "name2": "bob", "match_date": "2021-08-31", "prompted": "1",
-        {"name1": "bob", "name2": "charlie", "match_date": "2021-09-14", "prompted": "0"
+        {"name1": "alice", "name2": "bob", "match_date": "2021-08-31", "prompted": "1"},
+        {"name1": "bob", "name2": "charlie", "match_date": "2021-09-14", "prompted": "0}"
     ]
 
     :param history_file: filepath to read from
