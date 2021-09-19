@@ -17,6 +17,7 @@ from botocore.exceptions import ClientError
 HISTORY_DIR = "./doughnut_history/"
 DAYS_BETWEEN_RUNS = 14
 PROMPT_DAYS = DAYS_BETWEEN_RUNS / 2
+USER_LIMIT = int(os.environ.get("USER_LIMIT", "500"))
 CSV_FIELD_NAMES = ['name1', 'name2', 'conversation_id', 'match_date', 'prompted']
 
 CHANNELS = os.environ.get("SLACK_CHANNELS", "donuts:C015239UFM2")
@@ -63,7 +64,8 @@ def main():
         channel_users: List[Dict[str, str]] = su.get_user_list(
             channel_id=channel_id,
             session=SESSION,
-            summary_only=True
+            summary_only=True,
+            limit=USER_LIMIT
         )
         if len(channel_users) <= 1:
             print(f"Not enough users in the {channel_name} channel, skipping")
@@ -203,6 +205,7 @@ def send_prompt_message(match: Dict[str, str], session: WebClient) -> SlackRespo
         print(f"Unable to post message dm with {user1_name} & {user2_name}: \n {response.data}")
 
     return response
+
 
 def execute_channel_matches(channel_id: str, channel_users: List[Dict[str, str]], history: List[Dict], post_to_slack: bool, session: WebClient) -> List[Dict[str, str]]:
     """
