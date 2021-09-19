@@ -35,3 +35,6 @@ python3 doughnut.py
 
 ## Improvements
  - Opt out of matching with certain individuals
+ - Convert from scripts to class based implementation
+ - Make chat implementation more generic to allow for other chat integrations (EG: Discord)
+ - Use better data structure when storing history
