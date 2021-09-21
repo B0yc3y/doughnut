@@ -14,13 +14,13 @@ from os import path
 from slack_sdk import WebClient
 from botocore.exceptions import ClientError
 
-HISTORY_DIR = "./doughnut_history/"
-DAYS_BETWEEN_RUNS = 14
+HISTORY_DIR = os.environ.get("HISTORY_PATH", "./doughnut_history/")
+DAYS_BETWEEN_RUNS = int(os.environ.get("DAYS_BETWEEN_RUNS", "14"))
 PROMPT_DAYS = DAYS_BETWEEN_RUNS / 2
 USER_LIMIT = int(os.environ.get("USER_LIMIT", "500"))
 CSV_FIELD_NAMES = ['name1', 'name2', 'conversation_id', 'match_date', 'prompted']
 
-CHANNELS = os.environ.get("SLACK_CHANNELS", "donuts:C015239UFM2")
+CHANNELS = os.environ.get("SLACK_CHANNELS", "CHANNEL_1:CHANNEL_1_ID")
 POST_MATCHES = os.environ.get("POST_MATCHES", False)
 API_TOKEN = os.environ.get("SLACK_API_TOKEN", 'TOKEN HERE')
 S3_BUCKET_NAME = os.environ.get("S3_BUCKET", None)

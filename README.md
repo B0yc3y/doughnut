@@ -65,11 +65,18 @@ docker build -t doughnut:latest .
 ```shell
 python3 doughnut.py
 
-# docker run self built image
+# docker run the latest version from dockerhub
 docker run \
     -e "SLACK_API_TOKEN=$SLACK_API_TOKEN" \
     -e "DOUGHNUT_S3_BUCKET=doughnut-store" \
     -e "SLACK_CHANNELS=channelName:channelId" 
+    boycey/doughnut:latest
+
+# docker run self built image
+docker run \
+    -e "SLACK_API_TOKEN=$SLACK_API_TOKEN" \
+    -e "DOUGHNUT_S3_BUCKET=doughnut-store" \
+    -e "SLACK_CHANNELS=channelName:channelId"
     doughnut:latest
 ```
 
