@@ -349,6 +349,12 @@ def get_history_file_path(channel_id: str, channel_name: str, history_dir: str):
 
 
 def write_history(history: List[Dict[str, str]], filepath: str):
+    directories: str = "/".join(filepath.split("/")[:-1])
+
+    # ensure our history directory exists
+    if directories is not None:
+        os.makedirs(directories, exist_ok=True)
+
     with open(filepath, 'w', newline='') as csv_file:
         writer = csv.DictWriter(csv_file, fieldnames=CSV_FIELD_NAMES)
         writer.writeheader()
