@@ -4,6 +4,12 @@ Bare bones, custom version of [Donut Slack App](https://slack.com/apps/A11MJ51SR
 This app gets all active, non-bot users in a Slack channel and randomly pairs them up for a social catch up, taking into account previous matches and timezones.
 The app will create a DM with the matched users, and post the matches to the channel it's pulling from.
 
+*Channel message when a new round of matches are in:*
+![img.png](channel_message.png)
+
+*DM to organise a catch up:*
+![img_1.png](dm_message.png)
+
 It uses the most recent match in the history file to get last run date, and if 7 days or more it will prompt the matches to catch up, if 14 days or more has passed it will make new matches with everyone included in the target channel.
 
 ### Installation
