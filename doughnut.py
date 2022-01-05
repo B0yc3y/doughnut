@@ -226,7 +226,7 @@ def execute_channel_matches(
     new_match_history: List[Dict[str, str]] = [{
         'name1': match['user1']['name'],
         'name2': match['user2']['name'],
-        'conversation_id': match["conversation_id"],
+        'conversation_id': match.get("conversation_id"),
         'match_date': today,
         'prompted': '0'
     } for match in matches]
@@ -373,9 +373,12 @@ def pull_history_from_s3(bucket_name: str, out_dir: str = "/tmp/"):
     bucket = S3_CLIENT.Bucket(bucket_name)
     print(f"Pulling history from s3://{bucket_name}")
     for s3_object in bucket.objects.all():
-        _, filename = os.path.split(s3_object.key)
-        print(f"Pulling history for channel {filename}")
-        bucket.download_file(s3_object.key, f"{out_dir}{filename}")
+        if not s3_object.key.endswith("/"): # Only want top level files, no folders
+            _, filename = os.path.split(s3_object.key)
+            if len(filename) > 0: # Double check we have a valid object name
+                dest = f"{out_dir}{filename}"
+                print(f"Pulling history for channel '{filename}'. Saving to '{dest}'")
+                bucket.download_file(s3_object.key, dest)
 
 
 def push_history_to_s3(bucket_name: str, channel: str, history_dir: str = "/tmp/"):
