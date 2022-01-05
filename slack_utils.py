@@ -197,11 +197,19 @@ def post_matches(session: WebClient, matches: List[Dict], channel_id: str) -> Sl
     """
     preview_message: str = ":doughnut: Matches are in! :doughnut:"
 
-    match_message: str = "The matches for this round:"
+    match_messages = []
+    msg: str = "The matches for this round:"
     for match in matches:
         user1_id: str = match['user1']['id']
         user2_id: str = match['user2']['id']
-        match_message += f'\n<@{user1_id}> and <@{user2_id}>'
+        msg += f'\n<@{user1_id}> and <@{user2_id}>'
+        if len(msg) > 2500:
+            match_messages.append(msg)
+            msg = ""
+    
+    # Don't forget to capture the last one!
+    # ...or the first one if it's less than 2500 chars
+    match_messages.append(msg)
 
     blocks: List[Block] = Block.parse_all([
         {
@@ -230,9 +238,9 @@ def post_matches(session: WebClient, matches: List[Dict], channel_id: str) -> Sl
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": match_message
+                "text": message
             }
-        },
+        } for message in match_messages,
         {
             "type": "divider"
         },
