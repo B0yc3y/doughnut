@@ -226,7 +226,7 @@ def execute_channel_matches(
     new_match_history: List[Dict[str, str]] = [{
         'name1': match['user1']['name'],
         'name2': match['user2']['name'],
-        'conversation_id': match["conversation_id"],
+        'conversation_id': match.get("conversation_id"),
         'match_date': today,
         'prompted': '0'
     } for match in matches]
