@@ -373,9 +373,12 @@ def pull_history_from_s3(bucket_name: str, out_dir: str = "/tmp/"):
     bucket = S3_CLIENT.Bucket(bucket_name)
     print(f"Pulling history from s3://{bucket_name}")
     for s3_object in bucket.objects.all():
-        _, filename = os.path.split(s3_object.key)
-        print(f"Pulling history for channel {filename}")
-        bucket.download_file(s3_object.key, f"{out_dir}{filename}")
+        if not s3_object.key.endswith("/"): # Only want top level files, no folders
+            _, filename = os.path.split(s3_object.key)
+            if len(filename) > 0: # Double check we have a valid object name
+                dest = f"{out_dir}{filename}"
+                print(f"Pulling history for channel '{filename}'. Saving to '{dest}'")
+                bucket.download_file(s3_object.key, dest)
 
 
 def push_history_to_s3(bucket_name: str, channel: str, history_dir: str = "/tmp/"):
